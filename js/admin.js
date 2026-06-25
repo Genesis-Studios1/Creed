@@ -3,6 +3,35 @@
    ═══════════════════════════════════════════ */
 
 const ADMIN_USERNAME = 'animefan123764';
+const STORAGE_KEYS = {
+  user: 'creed_user',
+  notifications: 'creed_notifications',
+  users: 'creed_online_users',
+  managers: 'creed_managers'
+};
+
+function loadState() {
+  const storedUsers = localStorage.getItem(STORAGE_KEYS.users);
+  if (storedUsers) {
+    try { mockUsers = JSON.parse(storedUsers); } catch (e) { console.warn('Invalid saved users', e); }
+  }
+
+  const storedManagers = localStorage.getItem(STORAGE_KEYS.managers);
+  if (storedManagers) {
+    try { mockManagers = JSON.parse(storedManagers); } catch (e) { console.warn('Invalid saved managers', e); }
+  }
+
+  const storedNotifs = localStorage.getItem(STORAGE_KEYS.notifications);
+  if (storedNotifs) {
+    try { mockNotifs = JSON.parse(storedNotifs); } catch (e) { console.warn('Invalid saved notifications', e); }
+  }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(mockUsers));
+  localStorage.setItem(STORAGE_KEYS.managers, JSON.stringify(mockManagers));
+  localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(mockNotifs));
+}
 
 // ── Auth check — admin panel only appears for username: animefan123764 ──
 function checkAccess() {
@@ -78,8 +107,10 @@ function switchTab(tab, el) {
 function renderOverview() {
   document.getElementById('sc-online').textContent   = mockUsers.length;
   document.getElementById('sc-servers').textContent  = mockServers.length;
-  document.getElementById('sc-logins').textContent   = 47;
+  document.getElementById('sc-logins').textContent   = Math.max(47, mockNotifs.filter(n => n.text.includes('logged in')).length + 20);
   document.getElementById('sc-managers').textContent = mockManagers.length;
+
+  renderProfile();
 
   // Recent logins list
   const list = document.getElementById('recentLogins');
@@ -173,7 +204,10 @@ function renderUsers() {
       <td style="font-family:monospace;font-size:12px;color:var(--text-3)">${u.id}</td>
       <td><span class="badge ${u.role==='owner'?'badge-amber':u.role==='manager'||u.role==='moderator'?'badge-blue':'badge-green'}">${u.role}</span></td>
       <td style="color:var(--text-3);font-size:12px">${u.since}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="kickUser('${u.id}')">Kick</button></td>
+      <td style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="kickUser('${u.id}')">Kick</button>
+      ${u.role !== 'owner' ? `<button class="btn btn-ghost btn-sm" onclick="toggleManager('${u.id}')">${u.role === 'manager' ? 'Demote' : 'Promote'}</button>` : ''}
+    </td>
     </tr>`).join('');
 }
 
@@ -187,10 +221,37 @@ function filterUsers() {
 function kickUser(id) {
   const self = JSON.parse(localStorage.getItem('creed_user') || '{}');
   if (id === self.id) { showToast('Cannot kick yourself.', 'error'); return; }
+  const user = mockUsers.find(u => u.id === id);
   mockUsers = mockUsers.filter(u => u.id !== id);
+  saveState();
   renderUsers();
-  addNotif('🔴', `User <strong>${id}</strong> was kicked from the session`, 'just now');
+  addNotif('🔴', `User <strong>${user?.name || id}</strong> was kicked from the session`, 'just now');
   showToast('User kicked from session.', 'success');
+}
+
+function toggleManager(id) {
+  const user = mockUsers.find(u => u.id === id);
+  if (!user) return;
+
+  if (user.role === 'manager') {
+    user.role = 'member';
+    removeManager(id, false);
+    addNotif('🟡', `<strong>${user.name}</strong> was demoted from manager`, 'just now');
+    showToast('User demoted from manager.', 'success');
+  } else {
+    user.role = 'manager';
+    if (!mockManagers.some(m => m.id === id)) {
+      mockManagers.push({ id: user.id, name: user.name, role: 'manager', added: new Date().toISOString().split('T')[0] });
+    }
+    saveState();
+    renderManagers();
+    addNotif('🟢', `<strong>${user.name}</strong> was promoted to manager`, 'just now');
+    showToast('User promoted to manager.', 'success');
+  }
+
+  saveState();
+  renderUsers();
+  renderOverview();
 }
 
 // ── Notifications ──
@@ -229,6 +290,7 @@ function updateBadge() {
 
 function addNotif(icon, text, time) {
   mockNotifs.unshift({ icon, text, time, unread: true });
+  saveState();
   updateBadge();
   renderNotifs();
 }
@@ -257,21 +319,30 @@ function addManager() {
 
   const added = new Date().toISOString().split('T')[0];
   mockManagers.push({ id, name, role, added });
+
+  const user = mockUsers.find(u => u.id === id);
+  if (user) user.role = 'manager';
+
   document.getElementById('mgr-id').value   = '';
   document.getElementById('mgr-name').value = '';
+  saveState();
   renderManagers();
-  addNotif('🛡️', `<strong>${name}</strong> was added as ${role}`, 'just now');
-  showToast(`${name} added as ${role}!`);
-  document.getElementById('sc-managers').textContent = mockManagers.length;
+  renderUsers();
+  renderOverview();
+  addNotif('🟢', `<strong>${name}</strong> was added as ${role}`, 'just now');
 }
 
-function removeManager(id) {
+function removeManager(id, save = true) {
   const mgr = mockManagers.find(m => m.id === id);
   mockManagers = mockManagers.filter(m => m.id !== id);
+  const user = mockUsers.find(u => u.id === id);
+  if (user && user.role === 'manager') user.role = 'member';
+  if (save) saveState();
   renderManagers();
+  renderUsers();
+  renderOverview();
   if (mgr) addNotif('❌', `<strong>${mgr.name}</strong> was removed from managers`, 'just now');
   showToast('Manager removed.');
-  document.getElementById('sc-managers').textContent = mockManagers.length;
 }
 
 // ── Servers ──
@@ -339,6 +410,7 @@ function simulateLive() {
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
+  loadState();
   if (!checkAccess()) return;
   renderOverview();
   renderUsers();

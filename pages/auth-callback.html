@@ -94,10 +94,33 @@ async function run() {
         username: user.username,
         discriminator: user.discriminator,
         avatar: user.avatar,
+        role: 'member',
         loggedInAt: new Date().toISOString()
       };
 
       localStorage.setItem('creed_user', JSON.stringify(savedUser));
+
+      const onlineUsers = JSON.parse(localStorage.getItem('creed_online_users') || '[]');
+      if (!onlineUsers.some(u => u.id === savedUser.id)) {
+        onlineUsers.unshift({
+          id: savedUser.id,
+          name: savedUser.username,
+          role: 'member',
+          since: 'just now',
+          avatar: '👤'
+        });
+        localStorage.setItem('creed_online_users', JSON.stringify(onlineUsers));
+      }
+
+      const notifications = JSON.parse(localStorage.getItem('creed_notifications') || '[]');
+      notifications.unshift({
+        icon: '🟢',
+        text: `<strong>${savedUser.username}</strong> logged in via Discord`,
+        time: 'just now',
+        unread: true
+      });
+      localStorage.setItem('creed_notifications', JSON.stringify(notifications));
+
       window.location.href = '/pages/dashboard.html';
       return;
     }
@@ -139,17 +162,18 @@ async function run() {
 
   // ── Demo mode: simulate login so you can preview the admin panel ──
   // Remove this block once the real backend is running.
-  const DEMO_AS_ADMIN = true; // set to false to test the regular dashboard
+  const DEMO_AS_ADMIN = false; // set to true only for preview mode
   if (DEMO_AS_ADMIN) {
     const demoUser = {
       username:   ADMIN_USERNAME,
-      globalName: 'animefan123764',
+      discriminator: '0001',
       id:         '1308499431666094124',
       avatar:     'https://cdn.discordapp.com/embed/avatars/0.png',
-      isAdmin:    true,
+      role:       'owner',
       loggedInAt: new Date().toISOString()
     };
     localStorage.setItem('creed_user', JSON.stringify(demoUser));
+    window.location.href = '/pages/dashboard.html';
   }
 }
 
