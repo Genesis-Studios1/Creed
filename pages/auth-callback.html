@@ -84,15 +84,28 @@ async function run() {
     return;
   }
 
-  // ── Try backend first (if deployed) ──
+  // ── Try backend first (local server) ──
   try {
     const backendRes = await fetch('/auth/callback?code=' + encodeURIComponent(code), { redirect: 'follow' });
-    if (backendRes.ok || backendRes.redirected) {
-      window.location.href = backendRes.url || '/pages/dashboard.html';
+    if (backendRes.ok) {
+      const user = await backendRes.json();
+      const savedUser = {
+        id: user.id,
+        username: user.username,
+        discriminator: user.discriminator,
+        avatar: user.avatar,
+        loggedInAt: new Date().toISOString()
+      };
+
+      localStorage.setItem('creed_user', JSON.stringify(savedUser));
+      window.location.href = '/pages/dashboard.html';
       return;
     }
+
+    const errorData = await backendRes.text();
+    console.error('Backend auth failed:', backendRes.status, errorData);
   } catch(e) {
-    // No backend running — fall through to frontend mode
+    console.error('Backend auth fetch error:', e);
   }
 
   // ══════════════════════════════════════════════════
