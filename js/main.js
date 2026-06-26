@@ -23,16 +23,18 @@ function saveOnlineUsers(users) {
 }
 
 function getServerStats() {
-  try {
-    const saved = JSON.parse(localStorage.getItem('creed_server_stats') || 'null');
-    if (saved && saved.serverId) return saved;
-  } catch {}
   const defaults = {
     serverId: SERVER_ID,
     serverName: SERVER_NAME,
     discordMembers: 11874,
-    botUsers: 3241
+    botUsers: 3241,
+    discordOnline: 6241,
+    botServers: 7
   };
+  try {
+    const saved = JSON.parse(localStorage.getItem('creed_server_stats') || 'null');
+    if (saved) return { ...defaults, ...saved };
+  } catch {}
   localStorage.setItem('creed_server_stats', JSON.stringify(defaults));
   return defaults;
 }
@@ -60,6 +62,40 @@ function updateNavUI() {
     if (profileMenu) profileMenu.style.display = 'none';
   }
 }
+
+function toggleProfileDropdown() {
+  const dropdown = document.getElementById('profileDropdown');
+  if (!dropdown) return;
+  dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+}
+
+function getWebsiteOnlineCount() {
+  try {
+    const users = JSON.parse(localStorage.getItem('creed_online_users') || '[]');
+    return Array.isArray(users) ? users.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getDiscordOnlineCount() {
+  const stats = getServerStats();
+  return stats.discordOnline || 0;
+}
+
+function getBotServerCount() {
+  const stats = getServerStats();
+  return stats.botServers || 0;
+}
+
+document.addEventListener('click', (event) => {
+  const dropdown = document.getElementById('profileDropdown');
+  const avatar = document.getElementById('navProfileAvatar');
+  if (!dropdown || !avatar) return;
+  if (event.target === avatar || avatar.contains(event.target)) return;
+  if (dropdown.contains(event.target)) return;
+  dropdown.style.display = 'none';
+});
 
 function updateProfileUI() {
   const user = getSavedUser();

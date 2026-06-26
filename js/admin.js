@@ -105,10 +105,21 @@ function switchTab(tab, el) {
 
 // ── Overview ──
 function getServerStats() {
+  const defaults = { discordMembers: 11874, discordOnline: 6241, botServers: 7 };
   try {
-    return JSON.parse(localStorage.getItem('creed_server_stats') || 'null') || { discordMembers: 11874, botUsers: 3241 };
+    const saved = JSON.parse(localStorage.getItem('creed_server_stats') || 'null');
+    return saved ? { ...defaults, ...saved } : defaults;
   } catch {
-    return { discordMembers: 11874, botUsers: 3241 };
+    return defaults;
+  }
+}
+
+function getWebsiteOnlineCount() {
+  try {
+    const users = JSON.parse(localStorage.getItem('creed_online_users') || '[]');
+    return Array.isArray(users) ? users.length : 0;
+  } catch {
+    return mockUsers.length;
   }
 }
 
@@ -130,9 +141,9 @@ function renderProfile() {
 
 function renderOverview() {
   const stats = getServerStats();
-  document.getElementById('sc-online').textContent   = mockUsers.length;
-  document.getElementById('sc-servers').textContent  = stats.discordMembers.toLocaleString();
-  document.getElementById('sc-logins').textContent   = stats.botUsers.toLocaleString();
+  document.getElementById('sc-online').textContent   = getWebsiteOnlineCount().toLocaleString();
+  document.getElementById('sc-logins').textContent   = stats.discordOnline.toLocaleString();
+  document.getElementById('sc-servers').textContent  = stats.botServers.toLocaleString();
   document.getElementById('sc-managers').textContent = mockManagers.length;
 
   renderProfile();

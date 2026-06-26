@@ -34,10 +34,10 @@
 
   <div class="nav-actions">
     <a id="adminPanelBtn" href="pages/admin.html" class="btn btn-ghost btn-sm" style="display:none;">Admin Panel</a>
-    <div id="profileMenu" class="profile-menu" style="display:none;align-items:center;gap:10px;">
-      <img id="navProfileAvatar" src="" alt="Profile" class="profile-avatar" style="width:34px;height:34px;border-radius:999px;border:1px solid rgba(0,255,136,0.25);" />
-      <div style="display:flex;flex-direction:column;align-items:flex-start;">
-        <span id="navProfileName" style="font-size:12px;font-weight:700;color:var(--text);">User</span>
+    <div id="profileMenu" class="profile-menu" style="display:none;position:relative;align-items:center;gap:10px;">
+      <img id="navProfileAvatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Profile" class="profile-avatar" style="width:34px;height:34px;border-radius:999px;border:1px solid rgba(0,255,136,0.25);cursor:pointer;" onclick="toggleProfileDropdown()" />
+      <div id="profileDropdown" class="profile-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 10px);background:var(--bg1);border:1px solid var(--border);border-radius:14px;padding:10px;min-width:200px;box-shadow:0 20px 80px rgba(0,0,0,0.25);">
+        <div id="navProfileName" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">User#0000</div>
         <button class="btn btn-ghost btn-xs" onclick="handleLogout()">Logout</button>
       </div>
     </div>
