@@ -9,6 +9,12 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1519043591916490948';
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/auth/discord/callback';
 
+console.log('--- Creed local server startup ---');
+console.log(`Loaded DISCORD_CLIENT_ID: ${CLIENT_ID}`);
+console.log(`DISCORD_CLIENT_SECRET loaded: ${CLIENT_SECRET ? 'yes' : 'no'}${CLIENT_SECRET ? ` (length ${CLIENT_SECRET.length})` : ''}`);
+console.log(`Loaded DISCORD_REDIRECT_URI: ${REDIRECT_URI}`);
+console.log('----------------------------------');
+
 app.use(express.static(path.join(__dirname)));
 
 app.get('/auth/discord/callback', (req, res) => {
@@ -56,11 +62,22 @@ app.get('/auth/callback', async (req, res) => {
       return res.status(userRes.status).json({ error: userData });
     }
 
+    const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
+    });
+
+    const guildsData = await guildsRes.json();
+    const guildCount = Array.isArray(guildsData) ? guildsData.length : 0;
+
     res.json({
       id: userData.id,
       username: userData.username,
       discriminator: userData.discriminator,
-      avatar: userData.avatar
+      avatar: userData.avatar,
+      guildCount,
+      guilds: Array.isArray(guildsData) ? guildsData : []
     });
   } catch (error) {
     res.status(500).json({ error: error.message || 'Unknown error during OAuth exchange.' });

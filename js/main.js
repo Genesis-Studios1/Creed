@@ -2,6 +2,109 @@
    MAIN.JS
    ═══════════════════════════════════════════ */
 
+const CLIENT_ID = '1519043591916490948';
+const REDIRECT_PATH = '/auth/discord/callback';
+const REDIRECT_URI = `${window.location.origin}${REDIRECT_PATH}`;
+const OAUTH_SCOPE = 'identify guilds';
+const ADMIN_USERNAME = 'animefan123764';
+const SERVER_ID = '1519033305473880149';
+const SERVER_NAME = 'Creed Server';
+
+function getSavedUser() {
+  try { return JSON.parse(localStorage.getItem('creed_user') || 'null'); } catch { return null; }
+}
+
+function getOnlineUsers() {
+  try { return JSON.parse(localStorage.getItem('creed_online_users') || '[]'); } catch { return []; }
+}
+
+function saveOnlineUsers(users) {
+  localStorage.setItem('creed_online_users', JSON.stringify(users));
+}
+
+function getServerStats() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('creed_server_stats') || 'null');
+    if (saved && saved.serverId) return saved;
+  } catch {}
+  const defaults = {
+    serverId: SERVER_ID,
+    serverName: SERVER_NAME,
+    discordMembers: 11874,
+    botUsers: 3241
+  };
+  localStorage.setItem('creed_server_stats', JSON.stringify(defaults));
+  return defaults;
+}
+
+function updateNavUI() {
+  const user = getSavedUser();
+  const adminBtn = document.getElementById('adminPanelBtn');
+  const loginBtn = document.getElementById('loginButton');
+  const loginBtnMobile = document.getElementById('loginButtonMobile');
+  const profileMenu = document.getElementById('profileMenu');
+
+  if (user) {
+    if (adminBtn) adminBtn.style.display = user.username === ADMIN_USERNAME ? 'inline-flex' : 'none';
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (loginBtnMobile) loginBtnMobile.style.display = 'none';
+    if (profileMenu) profileMenu.style.display = 'inline-flex';
+    const avatar = document.getElementById('navProfileAvatar');
+    const navName = document.getElementById('navProfileName');
+    if (avatar) avatar.src = user.avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+    if (navName) navName.textContent = `${user.username || 'User'}#${user.discriminator || '0000'}`;
+  } else {
+    if (adminBtn) adminBtn.style.display = 'none';
+    if (loginBtn) loginBtn.style.display = 'inline-flex';
+    if (loginBtnMobile) loginBtnMobile.style.display = 'inline-flex';
+    if (profileMenu) profileMenu.style.display = 'none';
+  }
+}
+
+function updateProfileUI() {
+  const user = getSavedUser();
+  const profileCard = document.getElementById('heroProfileCard');
+  if (!profileCard) return;
+
+  if (!user) {
+    profileCard.style.display = 'none';
+    return;
+  }
+
+  const guildCount = user.guildCount ?? getOnlineUsers().length;
+  const avatar = document.getElementById('heroProfileAvatar');
+  const name = document.getElementById('heroProfileName');
+  const role = document.getElementById('heroProfileRole');
+  const discordId = document.getElementById('heroDiscordId');
+  const lastLogin = document.getElementById('heroLastLogin');
+  const guildCountEl = document.getElementById('heroGuildCount');
+
+  if (avatar) {
+    avatar.src = user.avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+    avatar.alt = user.username || 'Creed profile';
+  }
+  if (name) name.textContent = `${user.username || 'Guest'}#${user.discriminator || '0000'}`;
+  if (role) role.textContent = user.serverRole || 'Member';
+  if (discordId) discordId.textContent = user.id || '—';
+  if (lastLogin) lastLogin.textContent = user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '—';
+  if (guildCountEl) guildCountEl.textContent = guildCount.toLocaleString();
+
+  profileCard.style.display = 'block';
+}
+
+function handleLogout() {
+  const user = getSavedUser();
+  if (user) {
+    const remaining = getOnlineUsers().filter(u => u.id !== user.id);
+    saveOnlineUsers(remaining);
+  }
+  localStorage.removeItem('creed_user');
+  localStorage.removeItem('creed_guilds');
+  updateNavUI();
+  updateProfileUI();
+  window.location.reload();
+}
+
 // ── Nav scroll ──
 window.addEventListener('scroll', () => {
   document.getElementById('navbar')?.classList.toggle('scrolled', window.scrollY > 40);
@@ -16,6 +119,7 @@ function openLoginModal() {
   document.getElementById('loginBackdrop').classList.add('open');
   document.getElementById('captchaStep').style.display = 'block';
   document.getElementById('discordStep').style.display = 'none';
+  document.getElementById('redirectUriBox').style.display = 'none';
   genCaptcha();
 }
 function closeLoginModal() {
@@ -26,17 +130,13 @@ function closeIfBackdrop(e, id) {
 }
 
 // ── Discord OAuth2 ──
-// Redirect URI is hardcoded to match exactly what's in the Discord Portal
 function launchDiscordOAuth() {
-  const CLIENT_ID    = '1519043591916490948';
-  const REDIRECT_URI = 'http://localhost:3000/auth/discord/callback';
-
   const params = new URLSearchParams({
-    client_id:     CLIENT_ID,
-    redirect_uri:  REDIRECT_URI,
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
     response_type: 'code',
-    scope:         'identify',
-    prompt:        'consent'
+    scope: OAUTH_SCOPE,
+    prompt: 'consent'
   });
 
   window.location.href = 'https://discord.com/api/oauth2/authorize?' + params.toString();
@@ -44,6 +144,11 @@ function launchDiscordOAuth() {
 
 // Called by the "Continue with Discord" button after captcha passes
 function handleDiscordContinue() {
+  const redirectBox = document.getElementById('redirectUriBox');
+  if (redirectBox) {
+    redirectBox.style.display = 'block';
+    redirectBox.textContent = REDIRECT_URI;
+  }
   launchDiscordOAuth();
 }
 
@@ -83,3 +188,8 @@ function showToast(msg, type = 'success') {
   c.appendChild(t);
   setTimeout(() => t.remove(), 3500);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateNavUI();
+  updateProfileUI();
+});

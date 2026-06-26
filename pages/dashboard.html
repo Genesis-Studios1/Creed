@@ -58,7 +58,7 @@
 
   <div class="profile-panel" style="margin-bottom:28px;">
     <div class="panel" style="display:flex;align-items:center;gap:18px;padding:24px;">
-      <div id="profileAvatar" style="width:96px;height:96px;border-radius:28px;background:rgba(0,255,136,0.1);display:flex;align-items:center;justify-content:center;font-size:40px;color:var(--e1);">C</div>
+      <img id="profileAvatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Profile avatar" style="width:96px;height:96px;border-radius:28px;object-fit:cover;border:1px solid rgba(0,255,136,0.15);" />
       <div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <div style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:1.5px;">User Profile</div>
@@ -137,6 +137,25 @@ function showToast(msg, type='success'){
   c.appendChild(t);
   setTimeout(()=>t.remove(),3500);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem('creed_user') || 'null'); } catch { return null; }
+  })();
+
+  if (!user) return;
+
+  const avatar = document.getElementById('profileAvatar');
+  const name = document.getElementById('profileName');
+  const role = document.getElementById('profileRole');
+  const meta = document.getElementById('profileMeta');
+
+  if (avatar) avatar.src = user.avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+  if (name) name.textContent = `${user.username || 'Guest'}#${user.discriminator || '0000'}`;
+  if (role) role.textContent = user.serverRole || 'Member';
+  if (meta) meta.innerHTML = `Discord ID: ${user.id || '—'}<br/>Last login: ${user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : '—'}<br/>Server Role: ${user.serverRole || 'Member'}`;
+});
+
 document.querySelectorAll('.server-chip').forEach(chip=>{
   chip.addEventListener('click',()=>{
     document.querySelectorAll('.server-chip').forEach(c=>c.classList.remove('active'));

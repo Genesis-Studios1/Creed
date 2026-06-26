@@ -104,10 +104,35 @@ function switchTab(tab, el) {
 }
 
 // ── Overview ──
+function getServerStats() {
+  try {
+    return JSON.parse(localStorage.getItem('creed_server_stats') || 'null') || { discordMembers: 11874, botUsers: 3241 };
+  } catch {
+    return { discordMembers: 11874, botUsers: 3241 };
+  }
+}
+
+function renderProfile() {
+  const raw = localStorage.getItem(STORAGE_KEYS.user);
+  const user = raw ? JSON.parse(raw) : null;
+  const avatar = document.getElementById('ownerAvatar');
+  const ownerName = document.getElementById('ownerName');
+  const ownerTag = document.getElementById('ownerTag');
+  if (user) {
+    if (avatar) avatar.textContent = '';
+    if (avatar && avatar.tagName === 'IMG') {
+      avatar.src = user.avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+    }
+    if (ownerName) ownerName.textContent = user.username ? `@${user.username}` : 'Owner';
+    if (ownerTag) ownerTag.textContent = user.username || 'Owner';
+  }
+}
+
 function renderOverview() {
+  const stats = getServerStats();
   document.getElementById('sc-online').textContent   = mockUsers.length;
-  document.getElementById('sc-servers').textContent  = mockServers.length;
-  document.getElementById('sc-logins').textContent   = Math.max(47, mockNotifs.filter(n => n.text.includes('logged in')).length + 20);
+  document.getElementById('sc-servers').textContent  = stats.discordMembers.toLocaleString();
+  document.getElementById('sc-logins').textContent   = stats.botUsers.toLocaleString();
   document.getElementById('sc-managers').textContent = mockManagers.length;
 
   renderProfile();

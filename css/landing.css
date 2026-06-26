@@ -103,8 +103,27 @@
   display: flex; align-items: center; gap: 16px;
   padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
 }
+.hero-profile-avatar {
+  width: 56px; height: 56px; border-radius: 999px; object-fit: cover;
+}
 .bot-avatar-wrap svg { width: 56px; height: 56px; }
 .bot-name-row { display: flex; align-items: center; gap: 8px; }
+.hero-profile-card {
+  margin: 16px 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(0,255,136,0.04);
+  display: grid;
+  gap: 10px;
+}
+.hero-profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
 .bot-name { font-family: var(--display); font-size: 18px; font-weight: 700; }
 .bot-msgs { padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 140px; }
 .bot-msg { display: flex; flex-direction: column; gap: 3px; }

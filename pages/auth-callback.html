@@ -85,17 +85,27 @@ async function run() {
   }
 
   // ── Try backend first (local server) ──
+  let backendError = null;
+
   try {
     const backendRes = await fetch('/auth/callback?code=' + encodeURIComponent(code), { redirect: 'follow' });
     if (backendRes.ok) {
       const user = await backendRes.json();
+      const profileImage = user.avatar
+        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
+        : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+
       const savedUser = {
         id: user.id,
         username: user.username,
         discriminator: user.discriminator,
-        avatar: user.avatar,
+        avatarUrl: profileImage,
         role: 'member',
-        loggedInAt: new Date().toISOString()
+        serverRole: 'Member',
+        lastLoginAt: new Date().toISOString(),
+        loggedInAt: new Date().toISOString(),
+        guildCount: user.guildCount || user.guilds?.length || 0,
+        guilds: user.guilds || []
       };
 
       localStorage.setItem('creed_user', JSON.stringify(savedUser));
@@ -121,13 +131,20 @@ async function run() {
       });
       localStorage.setItem('creed_notifications', JSON.stringify(notifications));
 
-      window.location.href = '/pages/dashboard.html';
+      window.location.href = '/index.html';
       return;
     }
 
-    const errorData = await backendRes.text();
-    console.error('Backend auth failed:', backendRes.status, errorData);
+    try {
+      const errorJson = await backendRes.json();
+      backendError = JSON.stringify(errorJson);
+    } catch (_) {
+      backendError = await backendRes.text();
+    }
+
+    console.error('Backend auth failed:', backendRes.status, backendError);
   } catch(e) {
+    backendError = e.message;
     console.error('Backend auth fetch error:', e);
   }
 
@@ -153,9 +170,10 @@ async function run() {
       <div class="step"><span class="step-num">1</span><span>Go to <a href="https://discord.com/developers/applications/${CLIENT_ID}/oauth2/general" target="_blank" style="color:var(--e1)">Discord Developer Portal → OAuth2</a></span></div>
       <div class="step"><span class="step-num">2</span><span>Under <strong>Redirects</strong>, click <strong>Add Another</strong> and paste: <code>${currentURI}</code></span></div>
       <div class="step"><span class="step-num">3</span><span>Click <strong>Save Changes</strong> in the portal</span></div>
-      <div class="step"><span class="step-num">4</span><span>Deploy the <code>creed-oauth</code> Node.js backend from the OAuth2 zip — run <code>npm install</code> then <code>npm start</code></span></div>
-      <div class="step"><span class="step-num">5</span><span>Once the backend is running, login will complete automatically and <strong>animefan123764</strong> will be taken to the Admin Panel</span></div>
+      <div class="step"><span class="step-num">4</span><span>Start the local backend server with <code>npm install</code> and <code>npm start</code></span></div>
+      <div class="step"><span class="step-num">5</span><span>Make sure your real Discord Client Secret is in <code>.env</code>, then retry login.</span></div>
     </div>
+    ${backendError ? `<div class="notice" style="margin-top:16px;border-color:rgba(255,77,106,0.35);background:rgba(255,77,106,0.08);"><strong>Backend error:</strong> ${backendError}</div>` : ''}
     <a href="../index.html" class="btn" style="margin-top:16px;">← Back to Home</a>
     `
   );
