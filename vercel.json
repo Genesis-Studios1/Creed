@@ -4,6 +4,9 @@
     "api/auth/callback.js": {
       "maxDuration": 10
     },
+    "api/ai/chat.js": {
+      "maxDuration": 30
+    },
     "api/discord/stats.js": {
       "maxDuration": 30
     },

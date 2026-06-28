@@ -2,6 +2,16 @@
    ADMIN.JS — Owner-only panel logic
    ═══════════════════════════════════════════ */
 
+const OWNER_DISCORD_ID = '1308499431666094124';
+const OWNER_USERNAME = 'animefan123764';
+
+function isOwner(user) {
+  if (!user) return false;
+  const idMatch = String(user.id || '') === OWNER_DISCORD_ID;
+  const nameMatch = String(user.username || '').toLowerCase() === OWNER_USERNAME.toLowerCase();
+  return idMatch || nameMatch;
+}
+
 const STORAGE_KEYS = {
   user: 'creed_user',
   notifications: 'creed_notifications',
@@ -32,14 +42,26 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(mockNotifs));
 }
 
-// ── Auth check — admin panel only for bot owner Discord ID ──
+// ── Auth check — admin panel for bot owner ──
 function checkAccess() {
   const raw  = localStorage.getItem('creed_user');
-  const user = raw ? JSON.parse(raw) : null;
+  let user = null;
+  try { user = raw ? JSON.parse(raw) : null; } catch { user = null; }
+
+  if (!user) {
+    sessionStorage.setItem('creed_return_to', '/pages/admin.html');
+    document.getElementById('accessDenied').style.display = 'flex';
+    document.getElementById('adminPanel').style.display   = 'none';
+    const msg = document.querySelector('#accessDenied p');
+    if (msg) msg.textContent = 'You need to log in with Discord first.';
+    return false;
+  }
 
   if (!isOwner(user)) {
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
+    const msg = document.querySelector('#accessDenied p');
+    if (msg) msg.textContent = `Logged in as @${user.username || 'unknown'}. This panel is only for the bot owner.`;
     return false;
   }
 

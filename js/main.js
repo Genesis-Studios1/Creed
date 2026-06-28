@@ -299,6 +299,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   websiteHeartbeatTimer = setInterval(heartbeatWebsite, 30000);
   await refreshStats();
   setInterval(refreshStats, 30000);
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('login') === '1') {
+    openLoginModal();
+    history.replaceState({}, '', window.location.pathname);
+  }
 });
 
 async function refreshStats() {
