@@ -14,6 +14,35 @@ function getSavedUser() {
   try { return JSON.parse(localStorage.getItem('creed_user') || 'null'); } catch { return null; }
 }
 
+let websiteHeartbeatTimer = null;
+let websiteSessionId = null;
+
+function getWebsiteSessionId() {
+  if (websiteSessionId) return websiteSessionId;
+  const saved = sessionStorage.getItem('creed_session_id');
+  if (saved) {
+    websiteSessionId = saved;
+    return websiteSessionId;
+  }
+  websiteSessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  sessionStorage.setItem('creed_session_id', websiteSessionId);
+  return websiteSessionId;
+}
+
+async function heartbeatWebsite() {
+  try {
+    const sessionId = getWebsiteSessionId();
+    const user = getSavedUser();
+    await fetch('/api/website/heartbeat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, userId: user?.id || null })
+    });
+  } catch (error) {
+    console.warn('Heartbeat failed', error);
+  }
+}
+
 function getOnlineUsers() {
   try { return JSON.parse(localStorage.getItem('creed_online_users') || '[]'); } catch { return []; }
 }
@@ -228,4 +257,11 @@ function showToast(msg, type = 'success') {
 document.addEventListener('DOMContentLoaded', () => {
   updateNavUI();
   updateProfileUI();
+  heartbeatWebsite();
+  if (websiteHeartbeatTimer) clearInterval(websiteHeartbeatTimer);
+  websiteHeartbeatTimer = setInterval(heartbeatWebsite, 30000);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) heartbeatWebsite();
 });

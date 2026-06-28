@@ -59,6 +59,9 @@ let mockUsers = [
   { id: '591837462910',        name: 'Wraithbane', role: 'moderator',since: '14m ago', avatar: '🔥' },
 ];
 
+let liveDiscordMembers = [];
+let liveDiscordStats = { memberCount: 0, onlineCount: 0, botGuilds: 0 };
+
 let mockManagers = [
   { id: '773920182736', name: 'Novalynx',   role: 'manager',   added: '2025-07-01' },
   { id: '591837462910', name: 'Wraithbane', role: 'moderator', added: '2025-07-03' },
@@ -141,10 +144,19 @@ function renderProfile() {
 
 function renderOverview() {
   const stats = getServerStats();
-  document.getElementById('sc-online').textContent   = getWebsiteOnlineCount().toLocaleString();
-  document.getElementById('sc-logins').textContent   = stats.discordOnline.toLocaleString();
-  document.getElementById('sc-servers').textContent  = stats.botServers.toLocaleString();
+  const websiteCount = getWebsiteOnlineCount();
+  const discordOnline = liveDiscordStats.onlineCount || stats.discordOnline || 0;
+  const botGuilds = liveDiscordStats.botGuilds || stats.botServers || 0;
+  const memberCount = liveDiscordStats.memberCount || stats.discordMembers || 0;
+
+  document.getElementById('sc-online').textContent   = websiteCount.toLocaleString();
+  document.getElementById('sc-logins').textContent   = discordOnline.toLocaleString();
+  document.getElementById('sc-servers').textContent  = botGuilds.toLocaleString();
   document.getElementById('sc-managers').textContent = mockManagers.length;
+
+  if (liveDiscordStats.memberCount) {
+    localStorage.setItem('creed_server_stats', JSON.stringify({ ...stats, discordMembers: memberCount, discordOnline: discordOnline, botServers: botGuilds }));
+  }
 
   renderProfile();
 
@@ -229,22 +241,29 @@ function renderUsers() {
   const tbody = document.getElementById('usersTableBody');
   const count = document.getElementById('onlineCount');
   if (!tbody) return;
-  if (count) count.textContent = mockUsers.length;
 
-  tbody.innerHTML = mockUsers.map(u => `
-    <tr>
-      <td><div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:32px;height:32px;background:rgba(0,255,136,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;">${u.avatar}</div>
-        <strong>${u.name}</strong>
-      </div></td>
-      <td style="font-family:monospace;font-size:12px;color:var(--text-3)">${u.id}</td>
-      <td><span class="badge ${u.role==='owner'?'badge-amber':u.role==='manager'||u.role==='moderator'?'badge-blue':'badge-green'}">${u.role}</span></td>
-      <td style="color:var(--text-3);font-size:12px">${u.since}</td>
-      <td style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="kickUser('${u.id}')">Kick</button>
-      ${u.role !== 'owner' ? `<button class="btn btn-ghost btn-sm" onclick="toggleManager('${u.id}')">${u.role === 'manager' ? 'Demote' : 'Promote'}</button>` : ''}
-    </td>
-    </tr>`).join('');
+  const rows = liveDiscordMembers.length ? liveDiscordMembers : mockUsers;
+  if (count) count.textContent = rows.length;
+
+  tbody.innerHTML = rows.map(u => {
+    const roleLabel = u.roleNames && u.roleNames.length ? u.roleNames.join(', ') : (u.role || 'member');
+    const isOwner = u.isOwner || u.role === 'owner';
+    return `
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(0,255,136,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;">${u.avatar || '👤'}</div>
+          <strong>${u.name || u.displayName || u.username || 'Unknown'}</strong>
+        </div></td>
+        <td style="font-family:monospace;font-size:12px;color:var(--text-3)">${u.id}</td>
+        <td style="font-size:12px;color:var(--text-3)">${roleLabel}</td>
+        <td style="color:var(--text-3);font-size:12px">${u.since || 'live'}</td>
+        <td style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${!isOwner ? `<button class="btn btn-ghost btn-sm" onclick="banUser('${u.id}')">Ban</button>` : ''}
+          ${!isOwner ? `<button class="btn btn-ghost btn-sm" onclick="timeoutUser('${u.id}')">Timeout</button>` : ''}
+          ${!isOwner ? `<button class="btn btn-ghost btn-sm" onclick="toggleManager('${u.id}')">${u.role === 'manager' ? 'Demote' : 'Promote'}</button>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
 }
 
 function filterUsers() {
@@ -263,6 +282,55 @@ function kickUser(id) {
   renderUsers();
   addNotif('🔴', `User <strong>${user?.name || id}</strong> was kicked from the session`, 'just now');
   showToast('User kicked from session.', 'success');
+}
+
+async function banUser(id) {
+  const reason = window.prompt('Ban reason', 'Banned from admin panel');
+  if (!reason) return;
+  try {
+    const response = await fetch('/api/discord/ban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: id, reason })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not ban user');
+    addNotif('🔴', `User <strong>${id}</strong> was permanently banned`, 'just now');
+    showToast('User banned successfully.', 'success');
+  } catch (error) {
+    showToast(error.message || 'Ban failed.', 'error');
+  }
+}
+
+async function timeoutUser(id) {
+  const minutes = window.prompt('Timeout minutes', '60');
+  const duration = parseInt(minutes, 10);
+  if (!duration || Number.isNaN(duration)) return;
+  try {
+    const response = await fetch('/api/discord/timeout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: id, minutes: duration, reason: 'Timed out from admin panel' })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not timeout user');
+    addNotif('⏱️', `User <strong>${id}</strong> was timed out for ${duration} minutes`, 'just now');
+    showToast('User timed out successfully.', 'success');
+  } catch (error) {
+    showToast(error.message || 'Timeout failed.', 'error');
+  }
+}
+
+async function syncMemberRoles() {
+  try {
+    const response = await fetch('/api/discord/sync-member-role', { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not sync roles');
+    showToast(`Assigned member role to ${data.assigned} users.`, 'success');
+    refreshDiscordData();
+  } catch (error) {
+    showToast(error.message || 'Role sync failed.', 'error');
+  }
 }
 
 function toggleManager(id) {
@@ -414,9 +482,40 @@ function saveOAuth() {
   showToast('OAuth settings saved!');
 }
 
-function refreshAll() {
+async function refreshDiscordData() {
+  try {
+    const [statsRes, membersRes] = await Promise.all([
+      fetch('/api/discord/stats'),
+      fetch('/api/discord/members')
+    ]);
+
+    if (statsRes.ok) {
+      const stats = await statsRes.json();
+      liveDiscordStats = stats;
+      const saved = getServerStats();
+      localStorage.setItem('creed_server_stats', JSON.stringify({ ...saved, discordMembers: stats.memberCount || saved.discordMembers || 0, discordOnline: stats.onlineCount || saved.discordOnline || 0, botServers: stats.botGuilds || saved.botServers || 0 }));
+    }
+
+    if (membersRes.ok) {
+      const membersData = await membersRes.json();
+      liveDiscordMembers = (membersData.members || []).map(member => ({
+        ...member,
+        name: member.displayName || member.username,
+        avatar: member.avatar ? `https://cdn.discordapp.com/avatars/${member.id}/${member.avatar}.png` : '👤',
+        role: member.roles?.includes('1519045618419368098') ? 'member' : 'guest',
+        since: 'live'
+      }));
+    }
+  } catch (error) {
+    console.warn('Live Discord data refresh failed', error);
+  }
+
   renderOverview();
   renderUsers();
+}
+
+function refreshAll() {
+  refreshDiscordData();
   renderNotifs();
   renderManagers();
   showToast('Data refreshed.');
@@ -453,9 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderNotifs();
   renderManagers();
   updateBadge();
+  refreshDiscordData();
 
   // Live simulation every 30 seconds
   setInterval(simulateLive, 30000);
+  setInterval(refreshDiscordData, 30000);
   // Refresh chart on resize
   window.addEventListener('resize', drawChart);
 });
