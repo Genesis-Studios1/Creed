@@ -117,7 +117,7 @@ function getServerStats() {
   }
 }
 
-// Fetch live data from serverless endpoints: website sessions, discord stats and members
+// Fetch live data from serverless endpoints: website sessions, discord stats, members, and managers
 async function refreshDiscordData() {
   try {
     // website sessions
@@ -137,16 +137,39 @@ async function refreshDiscordData() {
       localStorage.setItem('creed_server_stats', JSON.stringify({ discordMembers: liveDiscordStats.memberCount, discordOnline: liveDiscordStats.onlineCount, botServers: liveDiscordStats.botGuilds }));
     }
 
-    // discord members (for users tab)
+    // discord members (for users tab and managers extraction)
     const m = await fetch('/api/discord/members');
     if (m && m.ok) {
       const md = await m.json();
       liveDiscordMembers = Array.isArray(md.members) ? md.members : [];
+      
+      // extract managers from members (those with manager/moderator roles)
+      const managersFromDiscord = md.members.filter(member => 
+        Array.isArray(member.roleNames) && member.roleNames.some(r => r.toLowerCase().includes('manager') || r.toLowerCase().includes('moderator'))
+      ).map(member => ({
+        id: member.id,
+        name: member.displayName || member.username || 'Unknown',
+        role: 'manager',
+        added: new Date().toISOString().split('T')[0]
+      }));
+      
+      if (managersFromDiscord.length > 0) {
+        mockManagers = managersFromDiscord;
+      }
+      
+      // populate mock servers with accurate data
+      mockServers = [{
+        icon: '🏰',
+        name: 'Creed Server',
+        members: liveDiscordStats.memberCount || 11874
+      }];
     }
 
     // re-render UI
     renderOverview();
     renderUsers();
+    renderManagers();
+    renderServers();
   } catch (err) {
     console.warn('refreshDiscordData failed', err);
   }
@@ -157,7 +180,7 @@ function getWebsiteOnlineCount() {
     const users = JSON.parse(localStorage.getItem('creed_online_users') || '[]');
     return Array.isArray(users) ? users.length : 0;
   } catch {
-    return mockUsers.length;
+    return 0;
   }
 }
 
@@ -184,10 +207,11 @@ function renderOverview() {
   const botGuilds = liveDiscordStats.botGuilds || stats.botServers || 0;
   const memberCount = liveDiscordStats.memberCount || stats.discordMembers || 0;
 
+  // update cards with live data
   document.getElementById('sc-online').textContent   = websiteCount.toLocaleString();
   document.getElementById('sc-logins').textContent   = discordOnline.toLocaleString();
   document.getElementById('sc-servers').textContent  = botGuilds.toLocaleString();
-  document.getElementById('sc-managers').textContent = mockManagers.length;
+  document.getElementById('sc-managers').textContent = (mockManagers && mockManagers.length) || 0;
 
   if (liveDiscordStats.memberCount) {
     localStorage.setItem('creed_server_stats', JSON.stringify({ ...stats, discordMembers: memberCount, discordOnline: discordOnline, botServers: botGuilds }));
@@ -195,10 +219,18 @@ function renderOverview() {
 
   renderProfile();
 
-  // Recent logins list
+  // Recent logins list (use live members if available, fallback to mock)
   const list = document.getElementById('recentLogins');
   if (list) {
-    list.innerHTML = mockUsers.map(u => `
+    const usersToShow = liveDiscordMembers.length > 0 ? liveDiscordMembers.slice(0, 5).map(m => ({
+      id: m.id,
+      name: m.displayName || m.username || 'Unknown',
+      role: m.isOwner ? 'owner' : 'member',
+      avatar: '👤',
+      since: 'active'
+    })) : mockUsers.slice(0, 5);
+    
+    list.innerHTML = usersToShow.map(u => `
       <div class="activity-item">
         <div class="act-avatar">${u.avatar}</div>
         <div>
