@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="64" height="64">
+  <rect width="56" height="56" rx="8" fill="#05120A"/>
+  <polygon points="28,6 49,17 49,39 28,50 7,39 7,17" fill="#002B17" stroke="#00ff88" stroke-width="1.2"/>
+  <circle cx="28" cy="28" r="8" fill="#002B17" stroke="#00ff88" stroke-width="0.8"/>
+  <text x="28" y="33" text-anchor="middle" font-family="Rajdhani, sans-serif" font-size="14" font-weight="700" fill="#00ff88">C</text>
+</svg>
