@@ -142,22 +142,11 @@ app.get('/auth/callback', async (req, res) => {
       return res.status(userRes.status).json({ error: userData });
     }
 
-    const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`
-      }
-    });
-
-    const guildsData = await guildsRes.json();
-    const guildCount = Array.isArray(guildsData) ? guildsData.length : 0;
-
     res.json({
       id: userData.id,
       username: userData.username,
       discriminator: userData.discriminator,
-      avatar: userData.avatar,
-      guildCount,
-      guilds: Array.isArray(guildsData) ? guildsData : []
+      avatar: userData.avatar
     });
   } catch (error) {
     res.status(500).json({ error: error.message || 'Unknown error during OAuth exchange.' });

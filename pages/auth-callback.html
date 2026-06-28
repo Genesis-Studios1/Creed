@@ -4,27 +4,23 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Creed — Signing you in…</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Rajdhani:wght@700&display=swap" rel="stylesheet"/>
   <style>
     :root {
       --e1:#00ff88;--bg0:#060b07;--bg1:#0a110b;
       --border:rgba(0,255,136,0.15);--border-hi:rgba(0,255,136,0.35);
       --text:#e8f5ec;--text-2:rgba(232,245,236,0.6);--text-3:rgba(232,245,236,0.35);
-      --red:#ff4d6a;--blue:#5865f2;--amber:#ffc947;
+      --red:#ff4d6a;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Space Grotesk',sans-serif;background:var(--bg0);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg0);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;}
     .box{background:var(--bg1);border:1px solid var(--border-hi);border-radius:24px;padding:48px 40px;width:min(460px,94vw);text-align:center;box-shadow:0 0 80px rgba(0,255,136,0.08);}
-    .logo-name{font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--e1);letter-spacing:3px;margin-top:8px;}
+    .logo-name{font-size:22px;font-weight:700;color:var(--e1);letter-spacing:3px;margin-top:8px;}
     h2{font-size:20px;font-weight:700;margin:16px 0 8px;}
     p{font-size:14px;color:var(--text-2);line-height:1.6;}
     .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--e1);border-radius:50%;animation:spin 0.8s linear infinite;margin:20px auto;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .icon{font-size:52px;margin:16px 0;}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:20px;border:1px solid var(--border-hi);color:var(--text-2);background:transparent;transition:all 0.15s;}
-    .btn:hover{color:var(--text);background:rgba(255,255,255,0.04);}
-    .btn-green{background:var(--e1);color:var(--bg0);border-color:var(--e1);}
-    .btn-green:hover{background:#1affaa;color:var(--bg0);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin-top:20px;border:1px solid var(--border-hi);color:var(--text-2);background:transparent;}
     .notice{font-size:12px;color:var(--text-3);margin-top:20px;background:rgba(0,255,136,0.04);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:left;line-height:1.8;}
     .notice strong{color:var(--text-2);}
     code{background:rgba(0,255,136,0.1);padding:1px 6px;border-radius:4px;font-size:11px;color:var(--e1);}
@@ -37,19 +33,21 @@
 <div class="box" id="box">
   <svg viewBox="0 0 56 56" fill="none" width="44" height="44">
     <polygon points="28,3 52,16 52,40 28,53 4,40 4,16" fill="rgba(0,255,136,0.07)" stroke="#00ff88" stroke-width="1.4"/>
-    <text x="28" y="34" text-anchor="middle" font-family="Rajdhani" font-size="15" font-weight="700" fill="#00ff88">C</text>
+    <text x="28" y="34" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="700" fill="#00ff88">C</text>
   </svg>
   <div class="logo-name">CREED</div>
   <div class="spinner" id="spinner"></div>
   <h2 id="title">Signing you in…</h2>
-  <p id="sub">Talking to Discord, just a moment.</p>
+  <p id="sub">Connecting to Discord…</p>
   <div id="extra"></div>
 </div>
 
-  <script src="/js/owner-config.js"></script>
-  <script>
+<script>
 const OWNER_DISCORD_ID = '1308499431666094124';
 const OWNER_USERNAME = 'animefan123764';
+const CLIENT_ID = '1519043591916490948';
+const AUTH_TIMEOUT_MS = 12000;
+
 function isOwner(user) {
   if (!user) return false;
   const idMatch = String(user.id || '') === OWNER_DISCORD_ID;
@@ -57,12 +55,16 @@ function isOwner(user) {
   if (idMatch) return !user.username || nameMatch;
   return nameMatch;
 }
-const CLIENT_ID      = '1519043591916490948';
+
+function setStatus(text) {
+  const sub = document.getElementById('sub');
+  if (sub) sub.textContent = text;
+}
 
 function done(icon, title, sub, extraHTML) {
   document.getElementById('spinner').style.display = 'none';
   document.getElementById('title').textContent = title;
-  document.getElementById('sub').textContent   = sub;
+  document.getElementById('sub').textContent = sub;
   const iconEl = document.createElement('div');
   iconEl.className = 'icon';
   iconEl.textContent = icon;
@@ -70,134 +72,92 @@ function done(icon, title, sub, extraHTML) {
   if (extraHTML) document.getElementById('extra').innerHTML = extraHTML;
 }
 
+function finishLogin(user) {
+  const profileImage = user.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
+    : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
+
+  localStorage.setItem('creed_user', JSON.stringify({
+    id: String(user.id),
+    username: user.username,
+    discriminator: user.discriminator,
+    avatarUrl: profileImage,
+    role: isOwner(user) ? 'owner' : 'member',
+    serverRole: 'Member',
+    lastLoginAt: new Date().toISOString(),
+    loggedInAt: new Date().toISOString()
+  }));
+
+  setStatus('Success! Redirecting…');
+  window.location.replace('/index.html');
+}
+
+async function fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal, cache: 'no-store' });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function run() {
   const params = new URLSearchParams(window.location.search);
-  const code   = params.get('code');
-  const error  = params.get('error');
+  const code = params.get('code');
+  const error = params.get('error');
 
-  // ── User cancelled ──
   if (error) {
     done('❌', 'Cancelled', 'You didn\'t authorise Creed. No data was collected.',
-      `<a href="../index.html" class="btn">← Back to Home</a>`);
+      `<a href="/index.html" class="btn">← Back to Home</a>`);
     return;
   }
 
-  // ── No code ──
   if (!code) {
     done('⚠️', 'Nothing here', 'Use the Login button on the home page.',
-      `<a href="../index.html" class="btn">← Home</a>`);
+      `<a href="/index.html" class="btn">← Home</a>`);
     return;
   }
 
-  // ── Try backend first (local server) ──
   let backendError = null;
 
   try {
-    const backendRes = await fetch('/auth/callback?code=' + encodeURIComponent(code), { redirect: 'follow' });
+    setStatus('Verifying with Discord…');
+    const backendRes = await fetchWithTimeout('/auth/callback?code=' + encodeURIComponent(code), AUTH_TIMEOUT_MS);
+
     if (backendRes.ok) {
       const user = await backendRes.json();
-      const profileImage = user.avatar
-        ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
-        : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
-
-      const savedUser = {
-        id: String(user.id),
-        username: user.username,
-        discriminator: user.discriminator,
-        avatarUrl: profileImage,
-        role: isOwner({ id: user.id, username: user.username }) ? 'owner' : 'member',
-        serverRole: 'Member',
-        lastLoginAt: new Date().toISOString(),
-        loggedInAt: new Date().toISOString(),
-        guildCount: user.guildCount || user.guilds?.length || 0,
-        guilds: user.guilds || []
-      };
-
-      localStorage.setItem('creed_user', JSON.stringify(savedUser));
-
-      const onlineUsers = JSON.parse(localStorage.getItem('creed_online_users') || '[]');
-      if (!onlineUsers.some(u => u.id === savedUser.id)) {
-        onlineUsers.unshift({
-          id: savedUser.id,
-          name: savedUser.username,
-          role: 'member',
-          since: 'just now',
-          avatar: '👤'
-        });
-        localStorage.setItem('creed_online_users', JSON.stringify(onlineUsers));
-      }
-
-      const notifications = JSON.parse(localStorage.getItem('creed_notifications') || '[]');
-      notifications.unshift({
-        icon: '🟢',
-        text: `<strong>${savedUser.username}</strong> logged in via Discord`,
-        time: 'just now',
-        unread: true
-      });
-      localStorage.setItem('creed_notifications', JSON.stringify(notifications));
-
-      window.location.href = '/index.html';
+      finishLogin(user);
       return;
     }
 
     try {
       const errorJson = await backendRes.json();
-      backendError = JSON.stringify(errorJson);
+      backendError = typeof errorJson.error === 'string' ? errorJson.error : JSON.stringify(errorJson);
     } catch (_) {
       backendError = await backendRes.text();
     }
-
-    console.error('Backend auth failed:', backendRes.status, backendError);
-  } catch(e) {
-    backendError = e.message;
-    console.error('Backend auth fetch error:', e);
+  } catch (e) {
+    backendError = e.name === 'AbortError'
+      ? 'Login timed out. Check your connection and try again.'
+      : e.message;
   }
 
-  // ══════════════════════════════════════════════════
-  //  FRONTEND-ONLY MODE
-  //  Without a backend we can't exchange the code for
-  //  a real token (that requires the Client Secret).
-  //  So we show the user what to do next.
-  // ══════════════════════════════════════════════════
   const currentURI = window.location.href.split('?')[0];
 
-  done('⚠️', 'One more step needed', 'Discord sent back an authorisation code, but this site needs a small backend to complete the login.',
+  done('⚠️', 'Login failed', 'Could not complete Discord sign-in.',
     `
     <div class="notice">
-      <strong>Why this happens:</strong> Discord's OAuth2 requires your Client Secret to exchange the code for a token.
-      Secrets can't live in browser code — they need a backend server.<br/><br/>
-
-      <strong>The redirect URI error you saw earlier was because Discord needs you to whitelist the exact callback URL.</strong>
-      Copy this and add it in the Discord Portal:<br/>
+      <strong>Callback URL for Discord Portal:</strong>
       <div class="uri-box">${currentURI}</div>
-
-      <strong>Steps to fix everything:</strong><br/>
-      <div class="step"><span class="step-num">1</span><span>Go to <a href="https://discord.com/developers/applications/${CLIENT_ID}/oauth2/general" target="_blank" style="color:var(--e1)">Discord Developer Portal → OAuth2</a></span></div>
-      <div class="step"><span class="step-num">2</span><span>Under <strong>Redirects</strong>, click <strong>Add Another</strong> and paste: <code>${currentURI}</code></span></div>
-      <div class="step"><span class="step-num">3</span><span>Click <strong>Save Changes</strong> in the portal</span></div>
-      <div class="step"><span class="step-num">4</span><span>Start the local backend server with <code>npm install</code> and <code>npm start</code></span></div>
-      <div class="step"><span class="step-num">5</span><span>Make sure your real Discord Client Secret is in <code>.env</code>, then retry login.</span></div>
+      <div class="step"><span class="step-num">1</span><span>Add the URL above under <a href="https://discord.com/developers/applications/${CLIENT_ID}/oauth2/general" target="_blank" style="color:var(--e1)">Discord OAuth2 → Redirects</a></span></div>
+      <div class="step"><span class="step-num">2</span><span>Ensure <code>DISCORD_CLIENT_SECRET</code> is set in Vercel env vars</span></div>
+      <div class="step"><span class="step-num">3</span><span>Retry login from the home page</span></div>
     </div>
-    ${backendError ? `<div class="notice" style="margin-top:16px;border-color:rgba(255,77,106,0.35);background:rgba(255,77,106,0.08);"><strong>Backend error:</strong> ${backendError}</div>` : ''}
-    <a href="../index.html" class="btn" style="margin-top:16px;">← Back to Home</a>
+    ${backendError ? `<div class="notice" style="margin-top:16px;border-color:rgba(255,77,106,0.35);background:rgba(255,77,106,0.08);"><strong>Error:</strong> ${backendError}</div>` : ''}
+    <a href="/index.html" class="btn">← Back to Home</a>
     `
   );
-
-  // ── Demo mode: simulate login so you can preview the admin panel ──
-  // Remove this block once the real backend is running.
-  const DEMO_AS_ADMIN = false; // set to true only for preview mode
-  if (DEMO_AS_ADMIN) {
-    const demoUser = {
-      username:   OWNER_USERNAME,
-      discriminator: '0001',
-      id:         '1308499431666094124',
-      avatar:     'https://cdn.discordapp.com/embed/avatars/0.png',
-      role:       'owner',
-      loggedInAt: new Date().toISOString()
-    };
-    localStorage.setItem('creed_user', JSON.stringify(demoUser));
-    window.location.href = '/pages/dashboard.html';
-  }
 }
 
 run();

@@ -5,7 +5,7 @@
 const CLIENT_ID = '1519043591916490948';
 const REDIRECT_PATH = '/auth/discord/callback';
 const REDIRECT_URI = `${window.location.origin}${REDIRECT_PATH}`;
-const OAUTH_SCOPE = 'identify guilds';
+const OAUTH_SCOPE = 'identify';
 const SERVER_ID = '1519033305473880149';
 const SERVER_NAME = 'Creed Server';
 

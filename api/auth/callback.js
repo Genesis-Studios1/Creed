@@ -1,6 +1,3 @@
-const fetch = require('node-fetch');
-const querystring = require('querystring');
-
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -13,27 +10,24 @@ module.exports = async (req, res) => {
 
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-  const redirectUri = process.env.DISCORD_REDIRECT_URI || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/auth/discord/callback`;
+  const redirectUri = process.env.DISCORD_REDIRECT_URI
+    || `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/auth/discord/callback`;
 
   if (!clientSecret || !clientId) {
     return res.status(500).json({ error: 'Discord credentials are not configured.' });
   }
 
   try {
-    const body = querystring.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: redirectUri
-    });
-
     const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri
+      })
     });
 
     const tokenData = await tokenRes.json();
@@ -42,31 +36,18 @@ module.exports = async (req, res) => {
     }
 
     const userRes = await fetch('https://discord.com/api/users/@me', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`
-      }
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
     const userData = await userRes.json();
     if (!userRes.ok) {
       return res.status(userRes.status).json({ error: userData });
     }
 
-    const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`
-      }
-    });
-
-    const guildsData = await guildsRes.json();
-    const guildCount = Array.isArray(guildsData) ? guildsData.length : 0;
-
     return res.status(200).json({
       id: userData.id,
       username: userData.username,
       discriminator: userData.discriminator,
-      avatar: userData.avatar,
-      guildCount,
-      guilds: Array.isArray(guildsData) ? guildsData : []
+      avatar: userData.avatar
     });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unexpected error' });
