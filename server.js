@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const { generateCreedReply } = require('./ai/chatService');
 
 const app = express();
 app.use(express.json());
@@ -78,6 +79,20 @@ app.post('/api/website/heartbeat', (req, res) => {
 app.get('/api/website/stats', (req, res) => {
   cleanupWebsiteUsers();
   res.json({ count: activeWebsiteUsers.size, sessions: Array.from(activeWebsiteUsers.values()) });
+});
+
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    const { messages = [] } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Missing messages array.' });
+    }
+
+    const reply = await generateCreedReply({ messages });
+    return res.status(200).json({ reply });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Unable to generate AI response.' });
+  }
 });
 
 app.get('/auth/callback', async (req, res) => {
