@@ -46,12 +46,11 @@
   <div id="extra"></div>
 </div>
 
-<script>
+  <script src="../js/owner-config.js"></script>
+  <script>
 // ══════════════════════════════════════════════════
-//  ADMIN CHECK — Discord user ID based
-//  Admin panel shows only for owner: 1308499431666094124
+//  Admin panel shows only for owner Discord ID + username
 // ══════════════════════════════════════════════════
-const OWNER_DISCORD_ID = '1308499431666094124';
 const CLIENT_ID      = '1519043591916490948';
 
 function done(icon, title, sub, extraHTML) {
@@ -95,13 +94,12 @@ async function run() {
         ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
         : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
 
-      const isOwner = user.id === OWNER_DISCORD_ID;
       const savedUser = {
-        id: user.id,
+        id: String(user.id),
         username: user.username,
         discriminator: user.discriminator,
         avatarUrl: profileImage,
-        role: isOwner ? 'owner' : 'member',
+        role: isOwner({ id: user.id, username: user.username }) ? 'owner' : 'member',
         serverRole: 'Member',
         lastLoginAt: new Date().toISOString(),
         loggedInAt: new Date().toISOString(),
@@ -184,7 +182,7 @@ async function run() {
   const DEMO_AS_ADMIN = false; // set to true only for preview mode
   if (DEMO_AS_ADMIN) {
     const demoUser = {
-      username:   'Owner',
+      username:   OWNER_USERNAME,
       discriminator: '0001',
       id:         '1308499431666094124',
       avatar:     'https://cdn.discordapp.com/embed/avatars/0.png',

@@ -6,7 +6,6 @@ const CLIENT_ID = '1519043591916490948';
 const REDIRECT_PATH = '/auth/discord/callback';
 const REDIRECT_URI = `${window.location.origin}${REDIRECT_PATH}`;
 const OAUTH_SCOPE = 'identify guilds';
-const OWNER_DISCORD_ID = '1308499431666094124';
 const SERVER_ID = '1519033305473880149';
 const SERVER_NAME = 'Creed Server';
 
@@ -111,7 +110,7 @@ function updateNavUI() {
   const profileMenu = document.getElementById('profileMenu');
 
   if (user) {
-    if (adminBtn) adminBtn.style.display = user.id === OWNER_DISCORD_ID ? 'inline-flex' : 'none';
+    if (adminBtn) adminBtn.style.display = isOwner(user) ? 'inline-flex' : 'none';
     if (loginBtn) loginBtn.style.display = 'none';
     if (loginBtnMobile) loginBtnMobile.style.display = 'none';
     if (profileMenu) profileMenu.style.display = 'inline-flex';

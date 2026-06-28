@@ -2,7 +2,6 @@
    ADMIN.JS — Owner-only panel logic
    ═══════════════════════════════════════════ */
 
-const OWNER_DISCORD_ID = '1308499431666094124';
 const STORAGE_KEYS = {
   user: 'creed_user',
   notifications: 'creed_notifications',
@@ -38,7 +37,7 @@ function checkAccess() {
   const raw  = localStorage.getItem('creed_user');
   const user = raw ? JSON.parse(raw) : null;
 
-  if (!user || user.id !== OWNER_DISCORD_ID) {
+  if (!isOwner(user)) {
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
     return false;
