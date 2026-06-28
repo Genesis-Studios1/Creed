@@ -2,7 +2,7 @@
    ADMIN.JS — Owner-only panel logic
    ═══════════════════════════════════════════ */
 
-const ADMIN_USERNAME = 'animefan123764';
+const OWNER_DISCORD_ID = '1308499431666094124';
 const STORAGE_KEYS = {
   user: 'creed_user',
   notifications: 'creed_notifications',
@@ -33,12 +33,12 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(mockNotifs));
 }
 
-// ── Auth check — admin panel only appears for username: animefan123764 ──
+// ── Auth check — admin panel only for bot owner Discord ID ──
 function checkAccess() {
   const raw  = localStorage.getItem('creed_user');
   const user = raw ? JSON.parse(raw) : null;
 
-  if (!user || user.username !== ADMIN_USERNAME) {
+  if (!user || user.id !== OWNER_DISCORD_ID) {
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
     return false;
