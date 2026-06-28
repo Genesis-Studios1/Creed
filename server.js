@@ -3,6 +3,11 @@ const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
 const { generateCreedReply } = require('./ai/chatService');
+const { getDiscordStats } = require('./api/discord/_utils');
+const { incrementWebsiteMessage, setBotReportedMessages } = require('./api/_messageStore');
+const rolesHandler = require('./api/discord/roles');
+const setRoleHandler = require('./api/discord/set-role');
+const botStatsHandler = require('./api/bot/stats');
 
 const app = express();
 app.use(express.json());
@@ -88,6 +93,7 @@ app.post('/api/ai/chat', async (req, res) => {
       return res.status(400).json({ error: 'Missing messages array.' });
     }
 
+    incrementWebsiteMessage();
     const reply = await generateCreedReply({ messages });
     return res.status(200).json({ reply });
   } catch (error) {
@@ -160,20 +166,19 @@ app.get('/auth/callback', async (req, res) => {
 
 app.get('/api/discord/stats', async (req, res) => {
   try {
-    const guild = await discordRequest('GET', `/guilds/${GUILD_ID}`);
-    const botGuilds = await discordRequest('GET', '/users/@me/guilds');
-
-    res.json({
-      guildId: GUILD_ID,
-      memberCount: guild.approximate_member_count || 0,
-      onlineCount: guild.approximate_presence_count || 0,
-      botGuilds: Array.isArray(botGuilds) ? botGuilds.length : 0,
-      guildName: guild.name || 'Creed'
-    });
+    if (!BOT_TOKEN) {
+      return res.status(500).json({ error: 'DISCORD_BOT_TOKEN is not configured.' });
+    }
+    const stats = await getDiscordStats(BOT_TOKEN, GUILD_ID);
+    res.json(stats);
   } catch (error) {
     res.status(500).json({ error: error.message || 'Unable to load Discord stats.' });
   }
 });
+
+app.get('/api/discord/roles', (req, res) => rolesHandler(req, res));
+app.post('/api/discord/set-role', (req, res) => setRoleHandler(req, res));
+app.post('/api/bot/stats', (req, res) => botStatsHandler(req, res));
 
 app.get('/api/discord/members', async (req, res) => {
   try {
@@ -188,7 +193,9 @@ app.get('/api/discord/members', async (req, res) => {
       displayName: member.nick || member.user?.global_name || member.user?.username || 'Unknown',
       avatar: member.user?.avatar,
       roles: Array.isArray(member.roles) ? member.roles : [],
-      roleNames: (Array.isArray(member.roles) ? member.roles : []).map(roleId => roleNameMap[roleId] || roleId),
+      roleNames: (Array.isArray(member.roles) ? member.roles : [])
+        .map(roleId => roleNameMap[roleId] || roleId)
+        .filter(name => name && name !== '@everyone'),
       isOwner: member.user?.id === process.env.DISCORD_OWNER_ID || member.user?.id === '1308499431666094124'
     }));
 

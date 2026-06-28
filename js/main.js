@@ -55,17 +55,52 @@ function getServerStats() {
   const defaults = {
     serverId: SERVER_ID,
     serverName: SERVER_NAME,
-    discordMembers: 11874,
-    botUsers: 3241,
-    discordOnline: 6241,
-    botServers: 7
+    discordMembers: 0,
+    botUsers: 0,
+    discordOnline: 0,
+    botServers: 0,
+    roleCount: 0,
+    websiteLogins: 0,
+    messagesSent: 0
   };
   try {
     const saved = JSON.parse(localStorage.getItem('creed_server_stats') || 'null');
     if (saved) return { ...defaults, ...saved };
   } catch {}
-  localStorage.setItem('creed_server_stats', JSON.stringify(defaults));
   return defaults;
+}
+
+function formatStatNumber(value, dec = 0, suffix = '') {
+  const num = Number(value) || 0;
+  return num.toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + suffix;
+}
+
+function setLiveStat(statName, value) {
+  document.querySelectorAll(`[data-stat="${statName}"]`).forEach(el => {
+    const dec = parseInt(el.dataset.dec || '0', 10);
+    const suffix = el.dataset.suffix || '';
+    el.dataset.to = String(value);
+    el.textContent = formatStatNumber(value, dec, suffix);
+    el.dataset.animated = 'true';
+  });
+}
+
+function applyLiveStats(stats) {
+  setLiveStat('servers', stats.botServers);
+  setLiveStat('members', stats.memberCount);
+  setLiveStat('messages', stats.messagesSent);
+  setLiveStat('logins', stats.websiteLogins);
+
+  localStorage.setItem('creed_server_stats', JSON.stringify({
+    serverId: SERVER_ID,
+    serverName: stats.guildName || SERVER_NAME,
+    discordMembers: stats.memberCount,
+    discordOnline: stats.onlineCount,
+    botServers: stats.botServers,
+    roleCount: stats.roleCount,
+    websiteLogins: stats.websiteLogins,
+    messagesSent: stats.messagesSent
+  }));
 }
 
 function updateNavUI() {
@@ -219,16 +254,19 @@ function handleDiscordContinue() {
 
 // ── Number counters ──
 function animateNum(el) {
+  if (el.dataset.animated === 'true') return;
   const target = parseFloat(el.dataset.to);
-  const dec    = parseInt(el.dataset.dec || 0);
+  if (!Number.isFinite(target)) return;
+  const dec    = parseInt(el.dataset.dec || 0, 10);
   const suffix = el.dataset.suffix || '';
   const dur    = 1800;
   const start  = performance.now();
   function frame(now) {
     const p    = Math.min((now - start) / dur, 1);
     const ease = 1 - Math.pow(1 - p, 3);
-    el.textContent = (target * ease).toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + suffix;
+    el.textContent = formatStatNumber(target * ease, dec, suffix);
     if (p < 1) requestAnimationFrame(frame);
+    else el.dataset.animated = 'true';
   }
   requestAnimationFrame(frame);
 }
@@ -254,50 +292,72 @@ function showToast(msg, type = 'success') {
   setTimeout(() => t.remove(), 3500);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   updateNavUI();
   updateProfileUI();
   heartbeatWebsite();
   if (websiteHeartbeatTimer) clearInterval(websiteHeartbeatTimer);
   websiteHeartbeatTimer = setInterval(heartbeatWebsite, 30000);
-  // refresh server-side stats (website sessions + discord stats)
-  refreshStats();
+  await refreshStats();
   setInterval(refreshStats, 30000);
 });
 
 async function refreshStats() {
+  let websiteLogins = 0;
+
   try {
-    // website sessions
-    const w = await fetch('/api/website/stats');
-    if (w && w.ok) {
-      const wd = await w.json();
-      const sessions = Array.isArray(wd.sessions) ? wd.sessions : [];
-      // store minimal session info in localStorage for client-side counts
-      const users = sessions.map(s => ({ id: s.userId || null, sessionId: s.sessionId, lastSeen: s.lastSeen }));
-      saveOnlineUsers(users);
-      // update hero trust number for Servers (first trust-num)
-      const trustEls = document.querySelectorAll('.hero-trust .trust-item .trust-num');
-      if (trustEls && trustEls.length >= 1) {
-        trustEls[0].dataset.to = (users.length).toString();
-        trustEls[0].textContent = users.length.toLocaleString();
+    const websiteRes = await fetch('/api/website/stats');
+    if (websiteRes.ok) {
+      const websiteData = await websiteRes.json();
+      const sessions = Array.isArray(websiteData.sessions) ? websiteData.sessions : [];
+      websiteLogins = sessions.length;
+      saveOnlineUsers(sessions.map(s => ({
+        id: s.userId || s.sessionId,
+        sessionId: s.sessionId,
+        lastSeen: s.lastSeen,
+        userId: s.userId || null
+      })));
+    }
+  } catch (error) {
+    console.warn('Website stats refresh failed', error);
+  }
+
+  try {
+    const discordRes = await fetch('/api/discord/stats', { cache: 'no-store' });
+    if (discordRes.ok) {
+      const discordData = await discordRes.json();
+      if (discordData.configured === false) {
+        console.warn('Discord stats unavailable: bot token not configured on server.');
+        return;
       }
+      applyLiveStats({
+        botServers: discordData.botGuilds || 0,
+        memberCount: discordData.memberCount || 0,
+        onlineCount: discordData.onlineCount || 0,
+        roleCount: discordData.roleCount || 0,
+        messagesSent: discordData.messagesSent || 0,
+        websiteLogins,
+        guildName: discordData.guildName || SERVER_NAME
+      });
+      return;
     }
 
-    // discord stats
-    const d = await fetch('/api/discord/stats');
-    if (d && d.ok) {
-      const dd = await d.json();
-      // persist server stats for other functions
-      localStorage.setItem('creed_server_stats', JSON.stringify({ discordMembers: dd.memberCount || 0, discordOnline: dd.onlineCount || 0, botServers: dd.botGuilds || 0 }));
-      // update hero trust numbers (index 1 -> Users)
-      const trustEls = document.querySelectorAll('.hero-trust .trust-item .trust-num');
-      if (trustEls && trustEls.length >= 2) {
-        if (trustEls[1]) { trustEls[1].dataset.to = (dd.memberCount || 0).toString(); trustEls[1].textContent = (dd.memberCount || 0).toLocaleString(); }
-      }
-    }
-  } catch (err) {
-    console.warn('refreshStats failed', err);
+    const errorBody = await discordRes.json().catch(() => ({}));
+    console.warn('Discord stats request failed', discordRes.status, errorBody.error || '');
+  } catch (error) {
+    console.warn('Discord stats refresh failed', error);
   }
+
+  const saved = getServerStats();
+  applyLiveStats({
+    botServers: saved.botServers || 0,
+    memberCount: saved.discordMembers || 0,
+    onlineCount: saved.discordOnline || 0,
+    roleCount: saved.roleCount || 0,
+    messagesSent: saved.messagesSent || 0,
+    websiteLogins,
+    guildName: saved.serverName || SERVER_NAME
+  });
 }
 
 document.addEventListener('visibilitychange', () => {

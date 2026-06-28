@@ -38,7 +38,7 @@
       <span class="sidebar-icon">📊</span> Overview
     </button>
     <button class="sidebar-item" onclick="switchTab('users',this)">
-      <span class="sidebar-icon">👥</span> Online Users
+      <span class="sidebar-icon">👥</span> Members
     </button>
     <button class="sidebar-item" onclick="switchTab('notifs',this)">
       <span class="sidebar-icon">🔔</span> Notifications
@@ -113,6 +113,13 @@
           <div class="stat-card-key">Managers</div>
         </div>
       </div>
+      <div class="stat-card">
+        <div class="stat-card-icon" style="background:rgba(0,255,136,0.12)">✉️</div>
+        <div>
+          <div class="stat-card-val" id="sc-messages">—</div>
+          <div class="stat-card-key">Messages Sent</div>
+        </div>
+      </div>
     </div>
 
     <div class="two-col">
@@ -131,18 +138,28 @@
     </div>
   </div>
 
-  <!-- ═══ ONLINE USERS TAB ═══ -->
+  <!-- ═══ MEMBERS TAB ═══ -->
   <div class="tab-pane" id="tab-users">
     <div class="panel">
       <div class="panel-head">
-        <h3>Online Users <span class="badge badge-green" id="onlineCount">0</span></h3>
-        <input type="text" placeholder="Search users…" id="userSearch" style="width:220px;font-size:13px;"
+        <h3>Server Members <span class="badge badge-green" id="onlineCount">0</span></h3>
+        <input type="text" placeholder="Search members…" id="userSearch" style="width:220px;font-size:13px;"
           oninput="filterUsers()"/>
       </div>
-      <table class="data-table">
-        <thead><tr><th>User</th><th>Discord ID</th><th>Role</th><th>Since</th><th>Actions</th></tr></thead>
-        <tbody id="usersTableBody"></tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="data-table members-table">
+          <thead>
+            <tr>
+              <th class="col-user">User</th>
+              <th class="col-id">Discord ID</th>
+              <th class="col-roles">Roles</th>
+              <th class="col-role-action">Assign Role</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 

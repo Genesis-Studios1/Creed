@@ -1,4 +1,5 @@
 const { generateCreedReply } = require('../../ai/chatService');
+const { incrementWebsiteMessage } = require('../_messageStore');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -11,6 +12,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing messages array.' });
     }
 
+    incrementWebsiteMessage();
     const reply = await generateCreedReply({ messages });
     return res.status(200).json({ reply });
   } catch (error) {

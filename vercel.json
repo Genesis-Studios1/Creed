@@ -1,5 +1,19 @@
 {
   "version": 2,
+  "functions": {
+    "api/discord/stats.js": {
+      "maxDuration": 30
+    },
+    "api/discord/members.js": {
+      "maxDuration": 30
+    },
+    "api/discord/set-role.js": {
+      "maxDuration": 15
+    },
+    "api/discord/sync-member-role.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/auth/callback",
@@ -8,38 +22,6 @@
     {
       "source": "/auth/discord/callback",
       "destination": "/pages/auth-callback.html"
-    },
-    {
-      "source": "/api/ai/chat",
-      "destination": "/api/ai/chat"
-    },
-    {
-      "source": "/api/website/heartbeat",
-      "destination": "/api/website/heartbeat"
-    },
-    {
-      "source": "/api/website/stats",
-      "destination": "/api/website/stats"
-    },
-    {
-      "source": "/api/discord/stats",
-      "destination": "/api/discord/stats"
-    },
-    {
-      "source": "/api/discord/members",
-      "destination": "/api/discord/members"
-    },
-    {
-      "source": "/api/discord/ban",
-      "destination": "/api/discord/ban"
-    },
-    {
-      "source": "/api/discord/timeout",
-      "destination": "/api/discord/timeout"
-    },
-    {
-      "source": "/api/discord/sync-member-role",
-      "destination": "/api/discord/sync-member-role"
     }
   ]
 }

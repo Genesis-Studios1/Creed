@@ -82,7 +82,7 @@ body { display: flex; min-height: 100vh; }
 .tab-pane.active { display: block; }
 
 /* Stats row */
-.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
 .stat-card {
   background: var(--bg1); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: 20px;
@@ -132,15 +132,48 @@ body { display: flex; min-height: 100vh; }
 .act-time { margin-left: auto; color: var(--text-3); font-size: 11px; }
 
 /* Table */
-.data-table { width: 100%; border-collapse: collapse; }
+.data-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .data-table th {
   text-align: left; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1px; color: var(--text-3);
   padding: 12px 20px; border-bottom: 1px solid var(--border);
 }
-.data-table td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.data-table td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: var(--bg2); }
+
+.table-wrap { overflow-x: auto; }
+.members-table .col-user { width: 22%; }
+.members-table .col-id { width: 18%; }
+.members-table .col-roles { width: 24%; }
+.members-table .col-role-action { width: 20%; }
+.members-table .col-actions { width: 16%; }
+
+.role-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.role-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; border-radius: 999px;
+  background: rgba(0,255,136,0.08); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-2); max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.role-picker {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.role-picker select {
+  min-width: 130px; max-width: 180px; font-size: 12px;
+}
+.member-cell {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+}
+.member-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.member-id {
+  font-family: monospace; font-size: 12px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Notif list */
 .notif-list { max-height: 480px; overflow-y: auto; }
