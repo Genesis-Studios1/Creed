@@ -260,7 +260,45 @@ document.addEventListener('DOMContentLoaded', () => {
   heartbeatWebsite();
   if (websiteHeartbeatTimer) clearInterval(websiteHeartbeatTimer);
   websiteHeartbeatTimer = setInterval(heartbeatWebsite, 30000);
+  // refresh server-side stats (website sessions + discord stats)
+  refreshStats();
+  setInterval(refreshStats, 30000);
 });
+
+async function refreshStats() {
+  try {
+    // website sessions
+    const w = await fetch('/api/website/stats');
+    if (w && w.ok) {
+      const wd = await w.json();
+      const sessions = Array.isArray(wd.sessions) ? wd.sessions : [];
+      // store minimal session info in localStorage for client-side counts
+      const users = sessions.map(s => ({ id: s.userId || null, sessionId: s.sessionId, lastSeen: s.lastSeen }));
+      saveOnlineUsers(users);
+      // update hero trust number for Servers (first trust-num)
+      const trustEls = document.querySelectorAll('.hero-trust .trust-item .trust-num');
+      if (trustEls && trustEls.length >= 1) {
+        trustEls[0].dataset.to = (users.length).toString();
+        trustEls[0].textContent = users.length.toLocaleString();
+      }
+    }
+
+    // discord stats
+    const d = await fetch('/api/discord/stats');
+    if (d && d.ok) {
+      const dd = await d.json();
+      // persist server stats for other functions
+      localStorage.setItem('creed_server_stats', JSON.stringify({ discordMembers: dd.memberCount || 0, discordOnline: dd.onlineCount || 0, botServers: dd.botGuilds || 0 }));
+      // update hero trust numbers (index 1 -> Users)
+      const trustEls = document.querySelectorAll('.hero-trust .trust-item .trust-num');
+      if (trustEls && trustEls.length >= 2) {
+        if (trustEls[1]) { trustEls[1].dataset.to = (dd.memberCount || 0).toString(); trustEls[1].textContent = (dd.memberCount || 0).toLocaleString(); }
+      }
+    }
+  } catch (err) {
+    console.warn('refreshStats failed', err);
+  }
+}
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) heartbeatWebsite();

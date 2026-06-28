@@ -117,6 +117,41 @@ function getServerStats() {
   }
 }
 
+// Fetch live data from serverless endpoints: website sessions, discord stats and members
+async function refreshDiscordData() {
+  try {
+    // website sessions
+    const w = await fetch('/api/website/stats');
+    if (w && w.ok) {
+      const wd = await w.json();
+      const sessions = Array.isArray(wd.sessions) ? wd.sessions : [];
+      const users = sessions.map(s => ({ id: s.userId || null, sessionId: s.sessionId, lastSeen: s.lastSeen }));
+      localStorage.setItem('creed_online_users', JSON.stringify(users));
+    }
+
+    // discord stats
+    const d = await fetch('/api/discord/stats');
+    if (d && d.ok) {
+      const dd = await d.json();
+      liveDiscordStats = { memberCount: dd.memberCount || 0, onlineCount: dd.onlineCount || 0, botGuilds: dd.botGuilds || 0 };
+      localStorage.setItem('creed_server_stats', JSON.stringify({ discordMembers: liveDiscordStats.memberCount, discordOnline: liveDiscordStats.onlineCount, botServers: liveDiscordStats.botGuilds }));
+    }
+
+    // discord members (for users tab)
+    const m = await fetch('/api/discord/members');
+    if (m && m.ok) {
+      const md = await m.json();
+      liveDiscordMembers = Array.isArray(md.members) ? md.members : [];
+    }
+
+    // re-render UI
+    renderOverview();
+    renderUsers();
+  } catch (err) {
+    console.warn('refreshDiscordData failed', err);
+  }
+}
+
 function getWebsiteOnlineCount() {
   try {
     const users = JSON.parse(localStorage.getItem('creed_online_users') || '[]');

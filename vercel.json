@@ -12,6 +12,34 @@
     {
       "source": "/api/ai/chat",
       "destination": "/api/ai/chat"
+    },
+    {
+      "source": "/api/website/heartbeat",
+      "destination": "/api/website/heartbeat"
+    },
+    {
+      "source": "/api/website/stats",
+      "destination": "/api/website/stats"
+    },
+    {
+      "source": "/api/discord/stats",
+      "destination": "/api/discord/stats"
+    },
+    {
+      "source": "/api/discord/members",
+      "destination": "/api/discord/members"
+    },
+    {
+      "source": "/api/discord/ban",
+      "destination": "/api/discord/ban"
+    },
+    {
+      "source": "/api/discord/timeout",
+      "destination": "/api/discord/timeout"
+    },
+    {
+      "source": "/api/discord/sync-member-role",
+      "destination": "/api/discord/sync-member-role"
     }
   ]
 }
