@@ -44,15 +44,12 @@
 
 <script>
 const OWNER_DISCORD_ID = '1308499431666094124';
-const OWNER_USERNAME = 'animefan123764';
 const CLIENT_ID = '1519043591916490948';
 const AUTH_TIMEOUT_MS = 12000;
 
 function isOwner(user) {
   if (!user) return false;
-  const idMatch = String(user.id || '') === OWNER_DISCORD_ID;
-  const nameMatch = String(user.username || '').toLowerCase() === OWNER_USERNAME.toLowerCase();
-  return idMatch || nameMatch;
+  return String(user.id || '') === OWNER_DISCORD_ID;
 }
 
 function setStatus(text) {
@@ -82,6 +79,7 @@ function finishLogin(user) {
     discriminator: user.discriminator,
     avatarUrl: profileImage,
     role: isOwner(user) ? 'owner' : 'member',
+    adminToken: user.adminToken || null,
     serverRole: 'Member',
     lastLoginAt: new Date().toISOString(),
     loggedInAt: new Date().toISOString()
