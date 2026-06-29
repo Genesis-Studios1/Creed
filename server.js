@@ -5,6 +5,8 @@ const path = require('path');
 const { generateCreedReply } = require('./ai/chatService');
 const { getDiscordStats } = require('./api/discord/_utils');
 const { incrementWebsiteMessage, setBotReportedMessages } = require('./api/_messageStore');
+const { ADMIN_DISCORD_USER_ID, createAdminToken, requireAdmin, ADMIN_PANEL_PASSWORD } = require('./api/_adminAuth');
+const { listAdmins, addAdmin, removeAdmin, isWebsiteAdmin } = require('./api/_adminStore');
 const rolesHandler = require('./api/discord/roles');
 const setRoleHandler = require('./api/discord/set-role');
 const botStatsHandler = require('./api/bot/stats');
@@ -19,7 +21,7 @@ const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
 const GUILD_ID = process.env.DISCORD_GUILD_ID || '1519033305473880149';
 const MEMBER_ROLE_ID = process.env.DISCORD_MEMBER_ROLE_ID || '1519045618419368098';
-const EXEMPT_USER_IDS = (process.env.DISCORD_EXEMPT_USER_IDS || '1308499431666094124').split(',').map(x => x.trim()).filter(Boolean);
+const EXEMPT_USER_IDS = (process.env.DISCORD_EXEMPT_USER_IDS || ADMIN_DISCORD_USER_ID).split(',').map(x => x.trim()).filter(Boolean);
 const DISCORD_API_BASE = 'https://discord.com/api/v10';
 const activeWebsiteUsers = new Map();
 
@@ -142,11 +144,15 @@ app.get('/auth/callback', async (req, res) => {
       return res.status(userRes.status).json({ error: userData });
     }
 
+    const isAdmin = isWebsiteAdmin(userData.id);
+
     res.json({
       id: userData.id,
       username: userData.username,
       discriminator: userData.discriminator,
-      avatar: userData.avatar
+      avatar: userData.avatar,
+      isAdmin,
+      adminToken: isAdmin ? createAdminToken(userData.id) : null
     });
   } catch (error) {
     res.status(500).json({ error: error.message || 'Unknown error during OAuth exchange.' });
@@ -165,9 +171,46 @@ app.get('/api/discord/stats', async (req, res) => {
   }
 });
 
-app.get('/api/discord/roles', (req, res) => rolesHandler(req, res));
-app.post('/api/discord/set-role', (req, res) => setRoleHandler(req, res));
+app.get('/api/discord/roles', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  rolesHandler(req, res);
+});
+app.post('/api/discord/set-role', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  setRoleHandler(req, res);
+});
 app.post('/api/bot/stats', (req, res) => botStatsHandler(req, res));
+
+app.post('/api/admin/login', (req, res) => {
+  const { password, userId } = req.body || {};
+  if (password !== ADMIN_PANEL_PASSWORD) {
+    return res.status(401).json({ error: 'Incorrect admin password.' });
+  }
+  const isAdmin = userId ? isWebsiteAdmin(userId) : true;
+  res.json({ ok: true, isAdmin, admins: listAdmins() });
+});
+
+app.get('/api/admin/admins', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ admins: listAdmins() });
+});
+
+app.post('/api/admin/admins', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const { userId, name, role } = req.body || {};
+  try {
+    const admin = addAdmin({ id: userId, name, role: role || 'admin' });
+    res.json({ ok: true, admin, admins: listAdmins() });
+  } catch (error) {
+    res.status(400).json({ error: error.message || 'Could not add admin.' });
+  }
+});
+
+app.delete('/api/admin/admins/:userId', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const removed = removeAdmin(req.params.userId);
+  res.json({ ok: true, removed, admins: listAdmins() });
+});
 
 app.get('/api/discord/members', async (req, res) => {
   try {
@@ -185,7 +228,7 @@ app.get('/api/discord/members', async (req, res) => {
       roleNames: (Array.isArray(member.roles) ? member.roles : [])
         .map(roleId => roleNameMap[roleId] || roleId)
         .filter(name => name && name !== '@everyone'),
-      isOwner: member.user?.id === process.env.DISCORD_OWNER_ID || member.user?.id === '1308499431666094124'
+      isOwner: member.user?.id === ADMIN_DISCORD_USER_ID
     }));
 
     res.json({ members: normalized });

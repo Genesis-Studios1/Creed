@@ -1,3 +1,6 @@
+const { ADMIN_DISCORD_USER_ID, createAdminToken } = require('../_adminAuth');
+const { isWebsiteAdmin } = require('../_adminStore');
+
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -43,11 +46,15 @@ module.exports = async (req, res) => {
       return res.status(userRes.status).json({ error: userData });
     }
 
+    const isAdmin = isWebsiteAdmin(userData.id);
+
     return res.status(200).json({
       id: userData.id,
       username: userData.username,
       discriminator: userData.discriminator,
-      avatar: userData.avatar
+      avatar: userData.avatar,
+      isAdmin,
+      adminToken: isAdmin ? createAdminToken(userData.id) : null
     });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unexpected error' });

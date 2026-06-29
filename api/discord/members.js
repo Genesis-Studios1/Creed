@@ -1,9 +1,11 @@
 const { discordGet } = require('./_utils');
+const { ADMIN_DISCORD_USER_ID, requireAdmin } = require('../_adminAuth');
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!requireAdmin(req, res)) return;
 
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID || '1519033305473880149';
@@ -30,7 +32,7 @@ module.exports = async (req, res) => {
       roleNames: (Array.isArray(member.roles) ? member.roles : [])
         .map(roleId => roleNameMap[roleId] || roleId)
         .filter(name => name && name !== '@everyone'),
-      isOwner: member.user?.id === process.env.DISCORD_OWNER_ID || member.user?.id === '1308499431666094124'
+      isOwner: member.user?.id === ADMIN_DISCORD_USER_ID
     }));
 
     return res.status(200).json({ members: normalized });

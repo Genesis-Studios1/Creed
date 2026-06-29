@@ -79,6 +79,7 @@ function finishLogin(user) {
     discriminator: user.discriminator,
     avatarUrl: profileImage,
     role: isOwner(user) ? 'owner' : 'member',
+    isAdmin: isOwner(user),
     adminToken: user.adminToken || null,
     serverRole: 'Member',
     lastLoginAt: new Date().toISOString(),

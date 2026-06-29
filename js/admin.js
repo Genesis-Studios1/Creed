@@ -2,22 +2,26 @@
    ADMIN.JS — Owner-only panel logic
    ═══════════════════════════════════════════ */
 
-const OWNER_DISCORD_ID = '1308499431666094124';
-const OWNER_USERNAME = 'animefan123764';
-
-function isOwner(user) {
-  if (!user) return false;
-  const idMatch = String(user.id || '') === OWNER_DISCORD_ID;
-  const nameMatch = String(user.username || '').toLowerCase() === OWNER_USERNAME.toLowerCase();
-  return idMatch || nameMatch;
-}
-
 const STORAGE_KEYS = {
   user: 'creed_user',
   notifications: 'creed_notifications',
   users: 'creed_online_users',
   managers: 'creed_managers'
 };
+
+function getSavedAdminUser() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.user) || 'null'); } catch { return null; }
+}
+
+function getAdminHeaders(includeJson = false) {
+  const user = getSavedAdminUser();
+  const headers = {
+    'x-admin-user-id': String(user?.id || ''),
+    'x-admin-token': String(user?.adminToken || '')
+  };
+  if (includeJson) headers['Content-Type'] = 'application/json';
+  return headers;
+}
 
 function loadState() {
   const storedUsers = localStorage.getItem(STORAGE_KEYS.users);
@@ -44,9 +48,7 @@ function saveState() {
 
 // ── Auth check — admin panel for bot owner ──
 function checkAccess() {
-  const raw  = localStorage.getItem('creed_user');
-  let user = null;
-  try { user = raw ? JSON.parse(raw) : null; } catch { user = null; }
+  const user = getSavedAdminUser();
 
   if (!user) {
     sessionStorage.setItem('creed_return_to', '/pages/admin.html');
@@ -57,13 +59,16 @@ function checkAccess() {
     return false;
   }
 
-  if (!isOwner(user)) {
+if (!isOwner(user)) {
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
     const msg = document.querySelector('#accessDenied p');
     if (msg) msg.textContent = `Logged in as @${user.username || 'unknown'}. This panel is only for the bot owner.`;
     return false;
   }
+  user.role = 'owner';
+  user.isAdmin = true;
+  localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
 
   document.getElementById('accessDenied').style.display = 'none';
   document.getElementById('adminPanel').style.display   = 'flex';
@@ -171,8 +176,8 @@ async function refreshDiscordData() {
     const [websiteRes, statsRes, membersRes, rolesRes] = await Promise.all([
       fetch('/api/website/stats', { cache: 'no-store' }),
       fetch('/api/discord/stats', { cache: 'no-store' }),
-      fetch('/api/discord/members', { cache: 'no-store' }),
-      fetch('/api/discord/roles', { cache: 'no-store' })
+      fetch('/api/discord/members', { cache: 'no-store', headers: getAdminHeaders() }),
+      fetch('/api/discord/roles', { cache: 'no-store', headers: getAdminHeaders() })
     ]);
 
     if (websiteRes.ok) {
@@ -303,7 +308,8 @@ function renderOverview() {
   document.getElementById('sc-logins').textContent   = discordOnline.toLocaleString();
   document.getElementById('sc-servers').textContent  = botGuilds.toLocaleString();
   document.getElementById('sc-managers').textContent = (mockManagers && mockManagers.length) || 0;
-  document.getElementById('sc-messages')?.textContent = (liveDiscordStats.messagesSent || stats.messagesSent || 0).toLocaleString();
+  const messagesStat = document.getElementById('sc-messages');
+  if (messagesStat) messagesStat.textContent = (liveDiscordStats.messagesSent || stats.messagesSent || 0).toLocaleString();
 
   if (liveDiscordStats.memberCount) {
     localStorage.setItem('creed_server_stats', JSON.stringify({ ...stats, discordMembers: memberCount, discordOnline: discordOnline, botServers: botGuilds }));
@@ -466,7 +472,7 @@ async function assignRole(userId) {
   try {
     const response = await fetch('/api/discord/set-role', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(true),
       body: JSON.stringify({ userId, roleId, action: 'add' })
     });
     const data = await response.json();
@@ -509,7 +515,7 @@ async function banUser(id) {
   try {
     const response = await fetch('/api/discord/ban', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(true),
       body: JSON.stringify({ userId: id, reason })
     });
     const data = await response.json();
@@ -528,7 +534,7 @@ async function timeoutUser(id) {
   try {
     const response = await fetch('/api/discord/timeout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(true),
       body: JSON.stringify({ userId: id, minutes: duration, reason: 'Timed out from admin panel' })
     });
     const data = await response.json();
@@ -542,7 +548,7 @@ async function timeoutUser(id) {
 
 async function syncMemberRoles() {
   try {
-    const response = await fetch('/api/discord/sync-member-role', { method: 'POST' });
+    const response = await fetch('/api/discord/sync-member-role', { method: 'POST', headers: getAdminHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not sync roles');
     showToast(`Assigned member role to ${data.assigned} users.`, 'success');

@@ -9,19 +9,21 @@
 </head>
 <body>
 
-<!-- ACCESS DENIED SCREEN (default) -->
+<!-- ADMIN PASSWORD SCREEN (default) -->
 <div id="accessDenied" class="access-screen">
   <div class="access-box">
     <div style="font-size:48px;margin-bottom:16px;">🔐</div>
-    <h2 style="font-family:var(--display);font-size:24px;margin-bottom:8px;color:var(--red)">Access Denied</h2>
-    <p style="color:var(--text-2);font-size:14px;">This panel is restricted to the bot owner.</p>
-    <p style="color:var(--text-3);font-size:13px;margin-top:8px;">Log in with Discord on the home page, then return here.</p>
-    <a href="/index.html?login=1" class="btn btn-primary mt-24" style="display:inline-flex;margin-right:8px;">Login with Discord</a>
+    <h2 style="font-family:var(--display);font-size:24px;margin-bottom:8px;color:var(--e1)">Admin Login</h2>
+    <p id="adminLoginMessage" style="color:var(--text-2);font-size:14px;">Enter the admin password to open the panel.</p>
+    <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap;justify-content:center;">
+      <input id="adminPasswordInput" type="password" placeholder="Admin password" autocomplete="current-password" style="min-width:240px;" onkeydown="if(event.key==='Enter') unlockAdminPanel()"/>
+      <button class="btn btn-primary" onclick="unlockAdminPanel()">Unlock</button>
+    </div>
     <a href="/index.html" class="btn btn-ghost mt-24" style="display:inline-flex;">← Back to Home</a>
   </div>
 </div>
 
-<!-- ADMIN PANEL (shown only for owner) -->
+<!-- ADMIN PANEL (shown after password/admin check) -->
 <div id="adminPanel" style="display:none;">
 
 <!-- Sidebar -->

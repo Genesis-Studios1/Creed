@@ -104,13 +104,11 @@ function applyLiveStats(stats) {
 
 function updateNavUI() {
   const user = getSavedUser();
-  const adminBtn = document.getElementById('adminPanelBtn');
   const loginBtn = document.getElementById('loginButton');
   const loginBtnMobile = document.getElementById('loginButtonMobile');
   const profileMenu = document.getElementById('profileMenu');
 
   if (user) {
-    if (adminBtn) adminBtn.style.display = isOwner(user) ? 'inline-flex' : 'none';
     if (loginBtn) loginBtn.style.display = 'none';
     if (loginBtnMobile) loginBtnMobile.style.display = 'none';
     if (profileMenu) profileMenu.style.display = 'inline-flex';
@@ -119,7 +117,6 @@ function updateNavUI() {
     if (avatar) avatar.src = user.avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
     if (navName) navName.textContent = `${user.username || 'User'}#${user.discriminator || '0000'}`;
   } else {
-    if (adminBtn) adminBtn.style.display = 'none';
     if (loginBtn) loginBtn.style.display = 'inline-flex';
     if (loginBtnMobile) loginBtnMobile.style.display = 'inline-flex';
     if (profileMenu) profileMenu.style.display = 'none';
