@@ -1,45 +1,16 @@
 {
-  "version": 2,
-  "functions": {
-    "api/auth/callback.js": {
-      "maxDuration": 10
-    },
-    "api/auth/login.js": {
-      "maxDuration": 10
-    },
-    "api/auth/me.js": {
-      "maxDuration": 10
-    },
-    "api/auth/logout.js": {
-      "maxDuration": 10
-    },
-    "api/auth/record-login.js": {
-      "maxDuration": 10
-    },
-    "api/ai/chat.js": {
-      "maxDuration": 30
-    },
-    "api/discord/stats.js": {
-      "maxDuration": 30
-    },
-    "api/discord/members.js": {
-      "maxDuration": 30
-    },
-    "api/discord/set-role.js": {
-      "maxDuration": 15
-    },
-    "api/discord/sync-member-role.js": {
-      "maxDuration": 60
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/auth/callback",
-      "destination": "/api/auth/callback"
-    },
-    {
-      "source": "/auth/discord/callback",
-      "destination": "/pages/auth-callback.html"
-    }
-  ]
+    "version":  2,
+    "functions":  {
+
+                  },
+    "rewrites":  [
+                     {
+                         "source":  "/auth/callback",
+                         "destination":  "/api/auth/callback"
+                     },
+                     {
+                         "source":  "/auth/discord/callback",
+                         "destination":  "/pages/auth-callback.html"
+                     }
+                 ]
 }

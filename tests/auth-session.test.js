@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSessionCookieValue, parseSessionCookieValue } = require('../api/auth/_session');
+const { createSessionCookieValue, parseSessionCookieValue } = require('../lib/api-handlers/auth/_session');
 
 test('creates and validates a signed session cookie payload', () => {
   const user = { id: '123', username: 'Tester' };
