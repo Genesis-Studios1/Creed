@@ -1,5 +1,4 @@
 const { discordGet } = require('./_utils');
-const { ADMIN_DISCORD_USER_ID, requireAdmin } = require('../_adminAuth');
 
 const DISCORD_API = 'https://discord.com/api/v10';
 
@@ -31,7 +30,6 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  if (!requireAdmin(req, res)) return;
 
   const botToken = process.env.DISCORD_BOT_TOKEN;
   const guildId = process.env.DISCORD_GUILD_ID || '1519033305473880149';

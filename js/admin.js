@@ -2,26 +2,22 @@
    ADMIN.JS — Owner-only panel logic
    ═══════════════════════════════════════════ */
 
+const OWNER_DISCORD_ID = '1308499431666094124';
+const OWNER_USERNAME = 'animefan123764';
+
+function isOwner(user) {
+  if (!user) return false;
+  const idMatch = String(user.id || '') === OWNER_DISCORD_ID;
+  const nameMatch = String(user.username || '').toLowerCase() === OWNER_USERNAME.toLowerCase();
+  return idMatch || nameMatch;
+}
+
 const STORAGE_KEYS = {
   user: 'creed_user',
   notifications: 'creed_notifications',
   users: 'creed_online_users',
   managers: 'creed_managers'
 };
-
-function getSavedAdminUser() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.user) || 'null'); } catch { return null; }
-}
-
-function getAdminHeaders(includeJson = false) {
-  const user = getSavedAdminUser();
-  const headers = {
-    'x-admin-user-id': String(user?.id || ''),
-    'x-admin-token': String(user?.adminToken || '')
-  };
-  if (includeJson) headers['Content-Type'] = 'application/json';
-  return headers;
-}
 
 function loadState() {
   const storedUsers = localStorage.getItem(STORAGE_KEYS.users);
@@ -33,6 +29,7 @@ function loadState() {
   if (storedManagers) {
     try { mockManagers = JSON.parse(storedManagers); } catch (e) { console.warn('Invalid saved managers', e); }
   }
+  syncAdminListFromManagers();
 
   const storedNotifs = localStorage.getItem(STORAGE_KEYS.notifications);
   if (storedNotifs) {
@@ -44,31 +41,58 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(mockUsers));
   localStorage.setItem(STORAGE_KEYS.managers, JSON.stringify(mockManagers));
   localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(mockNotifs));
+  syncAdminListFromManagers();
+}
+
+async function handleAdminPasswordLogin() {
+  const passwordInput = document.getElementById('adminPassword');
+  const password = passwordInput?.value?.trim();
+  if (!password) {
+    window.alert('Please enter the admin password.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      window.alert(data.error || 'Incorrect admin password.');
+      return;
+    }
+
+    localStorage.setItem('creed_user', JSON.stringify(data.user));
+    window.location.reload();
+  } catch (error) {
+    window.alert('Unable to unlock the admin panel right now.');
+  }
 }
 
 // ── Auth check — admin panel for bot owner ──
 function checkAccess() {
-  const user = getSavedAdminUser();
+  const raw  = localStorage.getItem('creed_user');
+  let user = null;
+  try { user = raw ? JSON.parse(raw) : null; } catch { user = null; }
 
   if (!user) {
     sessionStorage.setItem('creed_return_to', '/pages/admin.html');
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
     const msg = document.querySelector('#accessDenied p');
-    if (msg) msg.textContent = 'You need to log in with Discord first.';
+    if (msg) msg.textContent = 'Enter the admin password or log in with Discord first.';
     return false;
   }
 
-if (!isOwner(user)) {
+  if (!isAdmin(user)) {
     document.getElementById('accessDenied').style.display = 'flex';
     document.getElementById('adminPanel').style.display   = 'none';
     const msg = document.querySelector('#accessDenied p');
-    if (msg) msg.textContent = `Logged in as @${user.username || 'unknown'}. This panel is only for the bot owner.`;
+    if (msg) msg.textContent = `Logged in as @${user.username || 'unknown'}. This panel is only for the owner or approved admins.`;
     return false;
   }
-  user.role = 'owner';
-  user.isAdmin = true;
-  localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
 
   document.getElementById('accessDenied').style.display = 'none';
   document.getElementById('adminPanel').style.display   = 'flex';
@@ -87,12 +111,25 @@ let mockUsers = [
 
 let liveDiscordMembers = [];
 let guildRoles = [];
+let loggedInUsers = [];
 let liveDiscordStats = { memberCount: 0, onlineCount: 0, botGuilds: 0, roleCount: 0, messagesSent: 0, guildName: 'Creed Server' };
 
 let mockManagers = [
   { id: '773920182736', name: 'Novalynx',   role: 'manager',   added: '2025-07-01' },
   { id: '591837462910', name: 'Wraithbane', role: 'moderator', added: '2025-07-03' },
 ];
+
+function syncAdminListFromManagers() {
+  const admins = [];
+  if (typeof isOwner === 'function') {
+    admins.push({ id: OWNER_DISCORD_ID, name: OWNER_USERNAME, role: 'owner' });
+  }
+  mockManagers.forEach((manager) => {
+    if (!manager || !manager.id) return;
+    admins.push({ id: String(manager.id), name: manager.name || 'Admin', role: manager.role || 'manager' });
+  });
+  saveStoredAdmins(admins);
+}
 
 let mockNotifs = [
   { icon: '🟢', text: '<strong>Darkstrike</strong> logged in via Discord', time: '2 min ago',  unread: true },
@@ -176,19 +213,63 @@ async function refreshDiscordData() {
     const [websiteRes, statsRes, membersRes, rolesRes] = await Promise.all([
       fetch('/api/website/stats', { cache: 'no-store' }),
       fetch('/api/discord/stats', { cache: 'no-store' }),
-      fetch('/api/discord/members', { cache: 'no-store', headers: getAdminHeaders() }),
-      fetch('/api/discord/roles', { cache: 'no-store', headers: getAdminHeaders() })
+      fetch('/api/discord/members', { cache: 'no-store' }),
+      fetch('/api/discord/roles', { cache: 'no-store' })
     ]);
 
     if (websiteRes.ok) {
       const websiteData = await websiteRes.json();
       const sessions = Array.isArray(websiteData.sessions) ? websiteData.sessions : [];
-      localStorage.setItem('creed_online_users', JSON.stringify(sessions.map(s => ({
+      const savedSessions = sessions.map(s => ({
         id: s.userId || s.sessionId,
         sessionId: s.sessionId,
         lastSeen: s.lastSeen,
         userId: s.userId || null
-      }))));
+      }));
+      localStorage.setItem('creed_online_users', JSON.stringify(savedSessions));
+
+      const knownUsers = Array.isArray(websiteData.users) ? websiteData.users : [];
+      const mergedUsersMap = new Map();
+      knownUsers.forEach((user) => {
+        if (!user || !user.id) return;
+        mergedUsersMap.set(String(user.id), {
+          id: String(user.id),
+          username: user.username || 'User',
+          discriminator: user.discriminator || '0000',
+          role: user.role || 'member',
+          serverRole: user.serverRole || 'Member',
+          avatarUrl: user.avatarUrl || null,
+          lastSeen: user.lastSeen || user.lastLoginAt || Date.now(),
+          lastLoginAt: user.lastLoginAt || null,
+          source: user.source || 'website',
+          isActive: false
+        });
+      });
+
+      savedSessions.forEach((session) => {
+        const key = String(session.userId || session.id || session.sessionId || '');
+        if (!key) return;
+        const existing = mergedUsersMap.get(key);
+        if (existing) {
+          existing.isActive = true;
+          existing.lastSeen = session.lastSeen || existing.lastSeen;
+        } else {
+          mergedUsersMap.set(key, {
+            id: key,
+            username: 'Guest',
+            discriminator: '0000',
+            role: 'member',
+            serverRole: 'Member',
+            avatarUrl: null,
+            lastSeen: session.lastSeen || Date.now(),
+            lastLoginAt: session.lastSeen || null,
+            source: 'website',
+            isActive: true
+          });
+        }
+      });
+
+      loggedInUsers = Array.from(mergedUsersMap.values()).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
     }
 
     if (statsRes.ok) {
@@ -308,8 +389,7 @@ function renderOverview() {
   document.getElementById('sc-logins').textContent   = discordOnline.toLocaleString();
   document.getElementById('sc-servers').textContent  = botGuilds.toLocaleString();
   document.getElementById('sc-managers').textContent = (mockManagers && mockManagers.length) || 0;
-  const messagesStat = document.getElementById('sc-messages');
-  if (messagesStat) messagesStat.textContent = (liveDiscordStats.messagesSent || stats.messagesSent || 0).toLocaleString();
+  document.getElementById('sc-messages')?.textContent = (liveDiscordStats.messagesSent || stats.messagesSent || 0).toLocaleString();
 
   if (liveDiscordStats.memberCount) {
     localStorage.setItem('creed_server_stats', JSON.stringify({ ...stats, discordMembers: memberCount, discordOnline: discordOnline, botServers: botGuilds }));
@@ -317,28 +397,38 @@ function renderOverview() {
 
   renderProfile();
 
-  // Recent logins list (use live members if available, fallback to mock)
+  // Recent logins list (show all known users who have logged in, with status and role)
   const list = document.getElementById('recentLogins');
   if (list) {
-    const usersToShow = mockUsers.length > 0 ? mockUsers.slice(0, 5) : liveDiscordMembers.slice(0, 5).map(m => ({
-      id: m.id,
-      name: m.displayName || m.username || 'Unknown',
-      role: m.isOwner ? 'owner' : 'member',
-      avatarUrl: m.avatarUrl,
-      avatar: '👤',
-      since: 'active'
-    }));
-    
-    list.innerHTML = usersToShow.map(u => `
-      <div class="activity-item">
-        ${renderUserAvatar(u)}
-        <div>
-          <div class="act-name">${u.name}</div>
-          <div style="font-size:11px;color:var(--text-3)">${u.id}</div>
-        </div>
-        <span class="badge ${u.role === 'owner' ? 'badge-amber' : u.role === 'manager' ? 'badge-blue' : 'badge-green'}">${u.role}</span>
-        <span class="act-time">${u.since}</span>
-      </div>`).join('');
+    const usersToShow = loggedInUsers.length
+      ? loggedInUsers.slice(0, 12)
+      : mockUsers.length > 0
+        ? mockUsers.slice(0, 5)
+        : liveDiscordMembers.slice(0, 5).map(m => ({
+            id: m.id,
+            name: m.displayName || m.username || 'Unknown',
+            role: m.isOwner ? 'owner' : 'member',
+            avatarUrl: m.avatarUrl,
+            avatar: '👤',
+            since: 'active'
+          }));
+
+    list.innerHTML = usersToShow.map(u => {
+      const displayName = u.username || u.name || 'Unknown';
+      const roleLabel = u.serverRole || u.role || 'Member';
+      const sourceLabel = u.source === 'discord' ? 'Discord' : u.source === 'password' ? 'Password' : 'Website';
+      const sinceText = u.isActive ? 'Active now' : (u.lastSeen ? formatSince(u.lastSeen) : 'Seen');
+      return `
+        <div class="activity-item">
+          ${renderUserAvatar(u)}
+          <div style="min-width:0;flex:1;">
+            <div class="act-name">${escapeHtml(displayName)}</div>
+            <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.id || '—')} • ${escapeHtml(sourceLabel)}</div>
+          </div>
+          <span class="badge ${u.role === 'owner' ? 'badge-amber' : u.role === 'manager' ? 'badge-blue' : 'badge-green'}">${escapeHtml(roleLabel)}</span>
+          <span class="act-time">${escapeHtml(sinceText)}</span>
+        </div>`;
+    }).join('');
   }
 
   drawChart();
@@ -472,7 +562,7 @@ async function assignRole(userId) {
   try {
     const response = await fetch('/api/discord/set-role', {
       method: 'POST',
-      headers: getAdminHeaders(true),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, roleId, action: 'add' })
     });
     const data = await response.json();
@@ -515,7 +605,7 @@ async function banUser(id) {
   try {
     const response = await fetch('/api/discord/ban', {
       method: 'POST',
-      headers: getAdminHeaders(true),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: id, reason })
     });
     const data = await response.json();
@@ -534,7 +624,7 @@ async function timeoutUser(id) {
   try {
     const response = await fetch('/api/discord/timeout', {
       method: 'POST',
-      headers: getAdminHeaders(true),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: id, minutes: duration, reason: 'Timed out from admin panel' })
     });
     const data = await response.json();
@@ -548,7 +638,7 @@ async function timeoutUser(id) {
 
 async function syncMemberRoles() {
   try {
-    const response = await fetch('/api/discord/sync-member-role', { method: 'POST', headers: getAdminHeaders() });
+    const response = await fetch('/api/discord/sync-member-role', { method: 'POST' });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not sync roles');
     showToast(`Assigned member role to ${data.assigned} users.`, 'success');
@@ -644,12 +734,13 @@ function addManager() {
   const role = document.getElementById('mgr-role')?.value;
 
   if (!id || !name) { showToast('Please fill in all fields.', 'error'); return; }
-  if (mockManagers.find(m => m.id === id)) { showToast('This user is already a manager.', 'error'); return; }
+  if (String(id) === OWNER_DISCORD_ID) { showToast('The owner cannot be added as a manager.', 'error'); return; }
+  if (mockManagers.find(m => String(m.id) === String(id))) { showToast('This user is already a manager.', 'error'); return; }
 
   const added = new Date().toISOString().split('T')[0];
   mockManagers.push({ id, name, role, added });
 
-  const user = mockUsers.find(u => u.id === id);
+  const user = mockUsers.find(u => String(u.id) === String(id));
   if (user) user.role = 'manager';
 
   document.getElementById('mgr-id').value   = '';
@@ -662,9 +753,13 @@ function addManager() {
 }
 
 function removeManager(id, save = true) {
-  const mgr = mockManagers.find(m => m.id === id);
-  mockManagers = mockManagers.filter(m => m.id !== id);
-  const user = mockUsers.find(u => u.id === id);
+  const mgr = mockManagers.find(m => String(m.id) === String(id));
+  if (String(id) === OWNER_DISCORD_ID) {
+    showToast('The owner cannot be removed.', 'error');
+    return;
+  }
+  mockManagers = mockManagers.filter(m => String(m.id) !== String(id));
+  const user = mockUsers.find(u => String(u.id) === String(id));
   if (user && user.role === 'manager') user.role = 'member';
   if (save) saveState();
   renderManagers();

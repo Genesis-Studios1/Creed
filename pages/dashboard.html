@@ -138,10 +138,22 @@ function showToast(msg, type='success'){
   setTimeout(()=>t.remove(),3500);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const user = (() => {
+document.addEventListener('DOMContentLoaded', async () => {
+  const cachedUser = (() => {
     try { return JSON.parse(localStorage.getItem('creed_user') || 'null'); } catch { return null; }
   })();
+
+  let user = cachedUser;
+  if (!user) {
+    try {
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        user = data.user || null;
+        if (user) localStorage.setItem('creed_user', JSON.stringify(user));
+      }
+    } catch {}
+  }
 
   if (!user) return;
 

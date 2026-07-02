@@ -70,6 +70,34 @@ function verifyCaptcha() {
   document.getElementById('discordStep').style.display = 'block';
 }
 
+async function handlePasswordLogin() {
+  const passwordInput = document.getElementById('dashboardPassword');
+  const password = passwordInput?.value?.trim();
+  if (!password) {
+    window.alert('Please enter the dashboard password.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      window.alert(data.error || 'Incorrect password.');
+      return;
+    }
+
+    localStorage.setItem('creed_user', JSON.stringify(data.user));
+    closeLoginModal();
+    window.location.href = '/pages/dashboard.html';
+  } catch (error) {
+    window.alert('Login failed. Please try again.');
+  }
+}
+
 // Init on load if modal exists
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('captchaDisplay')) genCaptcha();

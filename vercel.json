@@ -4,6 +4,18 @@
     "api/auth/callback.js": {
       "maxDuration": 10
     },
+    "api/auth/login.js": {
+      "maxDuration": 10
+    },
+    "api/auth/me.js": {
+      "maxDuration": 10
+    },
+    "api/auth/logout.js": {
+      "maxDuration": 10
+    },
+    "api/auth/record-login.js": {
+      "maxDuration": 10
+    },
     "api/ai/chat.js": {
       "maxDuration": 30
     },

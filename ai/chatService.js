@@ -198,12 +198,17 @@ async function callGemini({ apiKey, model, systemPrompt, messages }) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-async function generateCreedReply({ messages = [], systemPrompt = DEFAULT_SYSTEM_PROMPT } = {}) {
+async function generateCreedReplyWithMeta({ messages = [], systemPrompt = DEFAULT_SYSTEM_PROMPT } = {}) {
   const userInput = getLastUserMessage(messages);
   const config = resolveModelConfig();
 
   if (!config.apiKey || config.provider === 'none') {
-    return buildFallbackReply(userInput);
+    return {
+      reply: buildFallbackReply(userInput),
+      usedFallback: true,
+      provider: 'none',
+      model: config.model || 'fallback'
+    };
   }
 
   const apiMessages = [
@@ -230,7 +235,12 @@ async function generateCreedReply({ messages = [], systemPrompt = DEFAULT_SYSTEM
 
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error?.message || 'Anthropic request failed');
-      return data.content?.[0]?.text || buildFallbackReply(userInput);
+      return {
+        reply: data.content?.[0]?.text || buildFallbackReply(userInput),
+        usedFallback: false,
+        provider: 'anthropic',
+        model: config.model
+      };
     }
 
     if (config.provider === 'gemini') {
@@ -240,7 +250,12 @@ async function generateCreedReply({ messages = [], systemPrompt = DEFAULT_SYSTEM
         systemPrompt,
         messages
       });
-      return text || buildFallbackReply(userInput);
+      return {
+        reply: text || buildFallbackReply(userInput),
+        usedFallback: false,
+        provider: 'gemini',
+        model: config.model
+      };
     }
 
     const response = await fetch(config.baseUrl, {
@@ -263,16 +278,33 @@ async function generateCreedReply({ messages = [], systemPrompt = DEFAULT_SYSTEM
 
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error?.message || data?.message || 'Model request failed');
-    return data.choices?.[0]?.message?.content || buildFallbackReply(userInput);
+    return {
+      reply: data.choices?.[0]?.message?.content || buildFallbackReply(userInput),
+      usedFallback: false,
+      provider: config.provider,
+      model: config.model
+    };
   } catch (error) {
     console.warn('AI provider failed, using fallback:', error.message);
-    return buildFallbackReply(userInput);
+    return {
+      reply: buildFallbackReply(userInput),
+      usedFallback: true,
+      provider: config.provider || 'none',
+      model: config.model || 'fallback',
+      error: error.message
+    };
   }
+}
+
+async function generateCreedReply(options) {
+  const result = await generateCreedReplyWithMeta(options);
+  return result.reply;
 }
 
 module.exports = {
   DEFAULT_SYSTEM_PROMPT,
   buildFallbackReply,
   generateCreedReply,
+  generateCreedReplyWithMeta,
   resolveModelConfig
 };

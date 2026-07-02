@@ -73,18 +73,24 @@ function finishLogin(user) {
     ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
     : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0', 10) % 5}.png`;
 
-  localStorage.setItem('creed_user', JSON.stringify({
+  const savedUser = {
     id: String(user.id),
     username: user.username,
     discriminator: user.discriminator,
     avatarUrl: profileImage,
     role: isOwner(user) ? 'owner' : 'member',
-    isAdmin: isOwner(user),
     adminToken: user.adminToken || null,
     serverRole: 'Member',
     lastLoginAt: new Date().toISOString(),
     loggedInAt: new Date().toISOString()
-  }));
+  };
+
+  localStorage.setItem('creed_user', JSON.stringify(savedUser));
+  fetch('/api/auth/record-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(savedUser)
+  }).catch(() => {});
 
   setStatus('Success! Redirecting…');
   const returnTo = sessionStorage.getItem('creed_return_to');

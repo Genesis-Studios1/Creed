@@ -42,6 +42,27 @@ async function getBotGuildCount(botToken) {
   return count;
 }
 
+async function getGuildMembers(botToken, guildId) {
+  const members = [];
+  let after = null;
+  let page = 0;
+
+  while (page < MAX_GUILD_PAGES) {
+    const params = new URLSearchParams({ limit: '1000' });
+    if (after) params.set('after', after);
+    const pageMembers = await discordGet(`/guilds/${guildId}/members?${params.toString()}`, botToken);
+    if (!Array.isArray(pageMembers) || pageMembers.length === 0) break;
+
+    members.push(...pageMembers);
+    if (pageMembers.length < 1000) break;
+
+    after = pageMembers[pageMembers.length - 1].user?.id || pageMembers[pageMembers.length - 1].id;
+    page += 1;
+  }
+
+  return members;
+}
+
 async function getDiscordStats(botToken, guildId, { useCache = true } = {}) {
   if (useCache && statsCache && Date.now() - statsCacheAt < STATS_CACHE_TTL_MS) {
     return statsCache;
@@ -70,4 +91,4 @@ async function getDiscordStats(botToken, guildId, { useCache = true } = {}) {
   return stats;
 }
 
-module.exports = { discordGet, getBotGuildCount, getDiscordStats };
+module.exports = { discordGet, getBotGuildCount, getDiscordStats, getGuildMembers };

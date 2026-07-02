@@ -1,4 +1,4 @@
-const { generateCreedReply } = require('../../ai/chatService');
+const { generateCreedReplyWithMeta } = require('../../ai/chatService');
 const { incrementWebsiteMessage } = require('../_messageStore');
 
 module.exports = async (req, res) => {
@@ -13,8 +13,14 @@ module.exports = async (req, res) => {
     }
 
     incrementWebsiteMessage();
-    const reply = await generateCreedReply({ messages });
-    return res.status(200).json({ reply });
+    const result = await generateCreedReplyWithMeta({ messages });
+    return res.status(200).json({
+      reply: result.reply,
+      usedFallback: result.usedFallback,
+      provider: result.provider,
+      model: result.model,
+      error: result.error || null
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Unable to generate AI response.' });
   }

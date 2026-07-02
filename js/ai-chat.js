@@ -30,6 +30,7 @@ async function sendAI() {
   if (!text || !msgs) return;
 
   input.value = '';
+  input.disabled = true;
 
   const userMsg = document.createElement('div');
   userMsg.className = 'ai-msg user-ai';
@@ -45,6 +46,7 @@ async function sendAI() {
   chatHistory.push({ role: 'user', content: text });
 
   let reply = clientAIFallback(text);
+  let statusText = '';
 
   try {
     const controller = new AbortController();
@@ -60,14 +62,20 @@ async function sendAI() {
     if (res.ok) {
       const data = await res.json();
       reply = data.reply || reply;
+      statusText = data.usedFallback ? 'Using fallback response.' : `Powered by ${data.provider || 'AI'}.`;
+    } else {
+      const errorData = await res.json().catch(() => ({}));
+      statusText = errorData.error || 'The AI service is temporarily unavailable.';
     }
   } catch (_) {
-    /* use client fallback */
+    statusText = 'The AI service is temporarily unavailable.';
   }
 
   chatHistory.push({ role: 'assistant', content: reply });
-  typing.innerHTML = `<div class="ai-avatar">C</div><div class="ai-bubble">${formatReply(reply)}</div>`;
+  typing.innerHTML = `<div class="ai-avatar">C</div><div class="ai-bubble">${formatReply(reply)}${statusText ? `<div style="margin-top:8px;font-size:11px;opacity:0.75;">${escapeHtml(statusText)}</div>` : ''}</div>`;
   msgs.scrollTop = msgs.scrollHeight;
+  input.disabled = false;
+  input.focus();
 }
 
 function formatReply(text) {
@@ -86,6 +94,20 @@ function clearChat() {
       <div class="ai-bubble">Hey! I'm Creed AI. Ask me about bot commands, coding, or anything else ⚡</div>
     </div>`;
 }
+
+function initAIChat() {
+  const input = document.getElementById('aiInput');
+  if (input) {
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        sendAI();
+      }
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', initAIChat);
 
 function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
